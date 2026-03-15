@@ -15,6 +15,7 @@ library tolinku;
 
 export 'src/tolinku_client.dart';
 export 'src/analytics.dart' show Analytics;
+export 'src/ecommerce.dart' show Ecommerce, TolinkuItem;
 export 'src/referrals.dart';
 export 'src/deferred.dart';
 export 'src/messages.dart';

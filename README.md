@@ -109,6 +109,32 @@ final reward = await referrals.claimReward(code: code);
 final entries = await referrals.leaderboard(limit: 10);
 ```
 
+### Ecommerce
+
+Track purchases, cart activity, and product events with built-in revenue analytics. Available on paid plans.
+
+```dart
+Tolinku.instance.setUserId('user_123');
+
+// Track a product view
+await Tolinku.instance.ecommerce.viewItem(
+  items: [TolinkuItem(itemId: 'sku_1', itemName: 'T-Shirt', price: 24.99)],
+);
+
+// Track a purchase
+await Tolinku.instance.ecommerce.purchase(
+  transactionId: 'order_456',
+  revenue: 49.99,
+  currency: 'USD',
+  items: [TolinkuItem(itemId: 'sku_1', itemName: 'T-Shirt', price: 24.99, quantity: 2)],
+);
+
+// Flush ecommerce events
+await Tolinku.instance.ecommerce.flush();
+```
+
+The SDK supports 13 event types covering the full shopping journey. Cart IDs are managed automatically via `SharedPreferences` and cleared after purchase. Add `Tolinku.instance.ecommerce.flush()` to your `WidgetsBindingObserver` for background flushing.
+
 ### Deferred Deep Links
 
 Recover deep link context for users who installed your app after clicking a link. Deferred deep linking lets you route users to specific content even when the app was not installed at the time of the click.
@@ -210,6 +236,25 @@ await Tolinku.instance.dispose();
 | `milestone(code:, milestone:)` | Update a referral milestone |
 | `claimReward(code:)` | Claim a referral reward |
 | `leaderboard(limit:)` | Fetch the referral leaderboard |
+
+### `tolinku.ecommerce`
+
+| Method | Description |
+|--------|-------------|
+| `viewItem(items:)` | Track a product view |
+| `addToCart(items:)` | Track item added to cart |
+| `removeFromCart(items:)` | Track item removed from cart |
+| `addToWishlist(items:)` | Track item added to wishlist |
+| `viewCart()` | Track cart view |
+| `addPaymentInfo()` | Track payment info entered |
+| `beginCheckout()` | Track checkout started |
+| `purchase(transactionId:, revenue:, currency:, items:)` | Track a purchase |
+| `refund(transactionId:, revenue:)` | Track a refund |
+| `search(searchTerm:)` | Track a product search |
+| `share(itemId:)` | Track a product share |
+| `rate(itemId:, rating:, maxRating:)` | Track a product rating |
+| `spendCredits(revenue:, currency:)` | Track loyalty credits spent |
+| `flush()` | Send all queued ecommerce events |
 
 ### `tolinku.deferred`
 

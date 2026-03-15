@@ -1,5 +1,5 @@
+import 'package:flutter_test/flutter_test.dart';
 import 'package:tolinku/tolinku.dart';
-import 'package:test/test.dart';
 
 void main() {
   group('CreateReferralResponse model', () {
@@ -281,6 +281,104 @@ void main() {
     test('implements Exception', () {
       const exception = TolinkuException('test');
       expect(exception, isA<Exception>());
+    });
+  });
+
+  group('TolinkuItem model', () {
+    test('toJson includes all fields', () {
+      final item = TolinkuItem(
+        itemId: 'sku_1',
+        itemName: 'T-Shirt',
+        itemCategory: 'Apparel',
+        itemBrand: 'Tolinku',
+        itemVariant: 'Red / L',
+        itemListName: 'Search Results',
+        itemListId: 'search_results',
+        itemImageUrl: 'https://example.com/img.jpg',
+        price: 24.99,
+        quantity: 2,
+        currency: 'USD',
+        couponCode: 'SAVE10',
+        discount: 5.0,
+      );
+      final json = item.toJson();
+
+      expect(json['item_id'], equals('sku_1'));
+      expect(json['item_name'], equals('T-Shirt'));
+      expect(json['item_category'], equals('Apparel'));
+      expect(json['item_brand'], equals('Tolinku'));
+      expect(json['item_variant'], equals('Red / L'));
+      expect(json['item_list_name'], equals('Search Results'));
+      expect(json['item_list_id'], equals('search_results'));
+      expect(json['item_image_url'], equals('https://example.com/img.jpg'));
+      expect(json['price'], equals(24.99));
+      expect(json['quantity'], equals(2));
+      expect(json['currency'], equals('USD'));
+      expect(json['coupon_code'], equals('SAVE10'));
+      expect(json['discount'], equals(5.0));
+    });
+
+    test('toJson omits null optional fields', () {
+      final item = TolinkuItem(itemId: 'sku_1');
+      final json = item.toJson();
+
+      expect(json['item_id'], equals('sku_1'));
+      expect(json['quantity'], equals(1));
+      expect(json.containsKey('item_name'), isFalse);
+      expect(json.containsKey('price'), isFalse);
+      expect(json.containsKey('currency'), isFalse);
+      expect(json.containsKey('item_variant'), isFalse);
+      expect(json.containsKey('item_image_url'), isFalse);
+      expect(json.containsKey('coupon_code'), isFalse);
+      expect(json.containsKey('discount'), isFalse);
+    });
+
+    test('toJson always includes quantity', () {
+      final item = TolinkuItem(itemId: 'sku_1');
+      final json = item.toJson();
+      expect(json.containsKey('quantity'), isTrue);
+      expect(json['quantity'], equals(1));
+    });
+
+    test('toJson uses correct snake_case keys', () {
+      final item = TolinkuItem(
+        itemId: 'sku_1',
+        itemName: 'Test',
+        itemCategory: 'Cat',
+        itemBrand: 'Brand',
+        itemVariant: 'Var',
+        itemListName: 'List',
+        itemListId: 'list_1',
+        itemImageUrl: 'https://img.jpg',
+        couponCode: 'CODE',
+      );
+      final json = item.toJson();
+
+      // Verify snake_case (not camelCase)
+      expect(json.containsKey('item_id'), isTrue);
+      expect(json.containsKey('itemId'), isFalse);
+      expect(json.containsKey('item_name'), isTrue);
+      expect(json.containsKey('itemName'), isFalse);
+      expect(json.containsKey('item_category'), isTrue);
+      expect(json.containsKey('item_brand'), isTrue);
+      expect(json.containsKey('item_variant'), isTrue);
+      expect(json.containsKey('item_list_name'), isTrue);
+      expect(json.containsKey('item_list_id'), isTrue);
+      expect(json.containsKey('item_image_url'), isTrue);
+      expect(json.containsKey('coupon_code'), isTrue);
+    });
+  });
+
+  group('Tolinku client ecommerce', () {
+    test('ecommerce accessor available after configure', () async {
+      Tolinku.configure(
+        apiKey: 'tolk_pub_test_key',
+        baseUrl: 'https://links.example.com',
+      );
+
+      expect(Tolinku.instance.ecommerce, isA<Ecommerce>());
+
+      await Tolinku.instance.dispose();
     });
   });
 

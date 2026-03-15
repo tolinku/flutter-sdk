@@ -1,5 +1,6 @@
 import 'analytics.dart';
 import 'deferred.dart';
+import 'ecommerce.dart';
 import 'exceptions.dart';
 import 'http_client.dart';
 import 'messages.dart';
@@ -24,6 +25,7 @@ class Tolinku {
     required TolinkuHttpClient httpClient,
   }) : _httpClient = httpClient {
     _analytics = Analytics(_httpClient);
+    _ecommerce = Ecommerce(_httpClient, () => _userId);
     _referrals = Referrals(_httpClient);
     _deferred = Deferred(_httpClient);
     _messages = Messages(_httpClient);
@@ -33,6 +35,7 @@ class Tolinku {
 
   final TolinkuHttpClient _httpClient;
   late final Analytics _analytics;
+  late final Ecommerce _ecommerce;
   late final Referrals _referrals;
   late final Deferred _deferred;
   late final Messages _messages;
@@ -143,6 +146,9 @@ class Tolinku {
   /// Analytics event tracking.
   Analytics get analytics => _analytics;
 
+  /// Ecommerce event tracking (purchases, carts, products, revenue).
+  Ecommerce get ecommerce => _ecommerce;
+
   /// Referral management.
   Referrals get referrals => _referrals;
 
@@ -179,17 +185,19 @@ class Tolinku {
   ///
   /// This delegates to [Analytics.flush]. Call this when the app goes to
   /// background if you are not using a lifecycle observer.
-  Future<void> flush() {
-    return _analytics.flush();
+  Future<void> flush() async {
+    await _analytics.flush();
+    await _ecommerce.flush();
   }
 
   /// Closes the underlying HTTP client and resets the singleton.
   ///
-  /// Flushes any remaining analytics events before cleaning up.
+  /// Flushes any remaining analytics and ecommerce events before cleaning up.
   /// After calling this, [configure] must be called again before using the
   /// SDK.
   Future<void> dispose() async {
     await _analytics.dispose();
+    await _ecommerce.dispose();
     _httpClient.close();
     _instance = null;
     _debugLog('Tolinku SDK disposed');
