@@ -20,7 +20,7 @@ void main() {
   /// A client capturing every request and replying with [status] and [body].
   TolinkuHttpClient clientReturning(int status, String body) {
     return TolinkuHttpClient(
-      baseUrl: 'https://kasina.tolinku.com',
+      baseUrl: 'https://myapp.tolinku.com',
       apiKey: 'tolk_pub_test',
       httpClient: MockClient((request) async {
         sentUris.add(request.url);
@@ -104,7 +104,7 @@ void main() {
       await deferred.claimBySignals(appspaceId: '64f0a1b2c3d4e5f60718');
 
       expect(sentUris.single.path, '/v1/api/deferred/claim-by-signals');
-      expect(sentUris.single.host, 'kasina.tolinku.com');
+      expect(sentUris.single.host, 'myapp.tolinku.com');
     });
   });
 
@@ -139,7 +139,7 @@ void main() {
       // A wrong appspaceId must surface. Collapsing it into null is what made an
       // earlier integration failure impossible to diagnose from the client side.
       await expectLater(
-        deferred.claimBySignals(appspaceId: 'kasina'),
+        deferred.claimBySignals(appspaceId: 'my-subdomain'),
         throwsA(isA<TolinkuException>()),
       );
     });
