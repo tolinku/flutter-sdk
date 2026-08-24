@@ -149,10 +149,25 @@ if (link != null) {
 }
 
 // Claim by device signal matching
+final media = MediaQuery.of(context);
+
 final link = await deferred.claimBySignals(
-  appspaceId: 'your_appspace_id',
+  appspaceId: '64f0a1b2c3d4e5f60718',   // your Appspace ID, from the dashboard under Settings
+  timezone: 'Asia/Seoul',                // IANA name, not an abbreviation like KST
+  language: 'ko-KR',                     // BCP-47, hyphen not underscore
+  screenWidth: media.size.width.round(), // logical pixels
+  screenHeight: media.size.height.round(),
+  devicePixelRatio: media.devicePixelRatio,
+  osVersion: Platform.operatingSystemVersion,
 );
 ```
+
+`appspaceId` is your Appspace ID, not your subdomain or slug. Copy it from the dashboard
+under **Integrate** or **Settings**.
+
+This SDK is pure Dart and cannot read device info itself, so the signals above are supplied
+by the caller. Matching needs at least two of them to agree, and `devicePixelRatio` is the
+strongest of them, so pass as many as you can.
 
 ### Deep Link Parsing
 
@@ -261,7 +276,7 @@ await Tolinku.instance.dispose();
 | Method | Description |
 |--------|-------------|
 | `claim(token:)` | Claim a deferred link by token |
-| `claimBySignals(appspaceId:, ...)` | Claim a deferred link by device signals |
+| `claimBySignals(appspaceId:, timezone:, language:, screenWidth:, screenHeight:, devicePixelRatio:, osVersion:)` | Claim a deferred link by device signals |
 
 ### `tolinku.messages`
 

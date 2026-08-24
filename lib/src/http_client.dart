@@ -37,6 +37,12 @@ void _debugLog(String message) {
   }
 }
 
+/// Logs a diagnostic message when debug mode is enabled.
+///
+/// Exposed to the rest of the package so call sites that swallow an error (and
+/// therefore leave no trace for the integrator) can still explain themselves.
+void tolinkuDebugLog(String message) => _debugLog(message);
+
 /// Internal HTTP client for making API requests to the Tolinku platform.
 ///
 /// This class is not part of the public API. Use [Tolinku] instead.
