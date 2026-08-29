@@ -22,6 +22,7 @@ export 'src/messages.dart';
 export 'src/message_presenter.dart';
 export 'src/models.dart';
 export 'src/exceptions.dart';
+export 'src/install_referrer.dart' show parseInstallReferrer, ReferrerProvider;
 // http_client.dart is intentionally not exported; it is internal to the SDK.
 // The following are re-exported from http_client.dart for public use:
 export 'src/http_client.dart'

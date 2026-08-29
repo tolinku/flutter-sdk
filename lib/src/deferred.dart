@@ -1,4 +1,5 @@
 import 'exceptions.dart';
+import 'install_referrer.dart';
 import 'http_client.dart';
 import 'models.dart';
 
@@ -37,6 +38,53 @@ class Deferred {
       if (e.statusCode == 404) return null;
       rethrow;
     }
+  }
+
+  /// Recovers the link that led to this install, trying both mechanisms.
+  ///
+  /// The Play Install Referrer is asked first when a [referrerProvider] is
+  /// given: it names the exact click, survives for days, and does not depend on
+  /// which network the device was on. Device signals are the fallback, and the
+  /// only option on iOS, where no equivalent exists.
+  ///
+  /// Call once on first launch. Calling again is safe, but a claim is consumed
+  /// the first time it succeeds, so a second call returns `null`.
+  ///
+  /// Reading the referrer needs a Play Services binding, which this package
+  /// does not bundle: supply it with a package such as
+  /// `android_play_install_referrer`. Without a provider, Android falls back to
+  /// signal matching.
+  Future<DeferredLink?> claimDeferredLink({
+    required String appspaceId,
+    ReferrerProvider? referrerProvider,
+  }) async {
+    if (appspaceId.trim().isEmpty) {
+      throw ArgumentError.value(
+        appspaceId,
+        'appspaceId',
+        'Appspace ID must not be empty.',
+      );
+    }
+
+    if (referrerProvider != null) {
+      String? token;
+      try {
+        token = parseInstallReferrer(await referrerProvider());
+      } catch (_) {
+        // A provider that fails is not worth losing the install over.
+        token = null;
+      }
+      if (token != null) {
+        try {
+          final byToken = await claim(token: token);
+          if (byToken != null) return byToken;
+        } on TolinkuException {
+          // Fall through to signals: the install still happened.
+        }
+      }
+    }
+
+    return claimBySignals(appspaceId: appspaceId);
   }
 
   /// Claims a deferred deep link by matching device signals.
