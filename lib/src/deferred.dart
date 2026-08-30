@@ -1,5 +1,6 @@
 import 'exceptions.dart';
 import 'install_referrer.dart';
+import 'install_referrer_native.dart';
 import 'http_client.dart';
 import 'models.dart';
 
@@ -50,10 +51,10 @@ class Deferred {
   /// Call once on first launch. Calling again is safe, but a claim is consumed
   /// the first time it succeeds, so a second call returns `null`.
   ///
-  /// Reading the referrer needs a Play Services binding, which this package
-  /// does not bundle: supply it with a package such as
-  /// `android_play_install_referrer`. Without a provider, Android falls back to
-  /// signal matching.
+  /// The referrer is read by this package's own Android plugin, so nothing
+  /// extra needs installing. Pass [referrerProvider] only to override that,
+  /// for instance in a test. Where the plugin is unavailable the lookup simply
+  /// returns nothing and Android falls back to signal matching.
   Future<DeferredLink?> claimDeferredLink({
     required String appspaceId,
     ReferrerProvider? referrerProvider,
@@ -66,10 +67,11 @@ class Deferred {
       );
     }
 
-    if (referrerProvider != null) {
+    final provider = referrerProvider ?? nativeReferrerProvider;
+    {
       String? token;
       try {
-        token = parseInstallReferrer(await referrerProvider());
+        token = parseInstallReferrer(await provider());
       } catch (_) {
         // A provider that fails is not worth losing the install over.
         token = null;

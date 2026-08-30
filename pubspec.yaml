@@ -21,3 +21,12 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   lints: ^4.0.0
+
+flutter:
+  plugin:
+    platforms:
+      # Android only: the Play Install Referrer has no iOS equivalent, and
+      # declaring only this platform means an iOS-only app never builds it.
+      android:
+        package: com.tolinku.tolinku
+        pluginClass: TolinkuPlugin

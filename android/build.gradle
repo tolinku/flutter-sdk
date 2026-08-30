@@ -1,0 +1,70 @@
+// Android side of the tolinku package.
+//
+// Exists only to read the Play Install Referrer, the deterministic way a
+// deferred link survives an install on Android. Bundled rather than delegated
+// because the referrer token is Tolinku's own mechanism: the platform mints it
+// onto the store link and this reads it back.
+//
+// Declared for Android alone in pubspec.yaml, so an iOS-only app never builds
+// it.
+//
+// To verify compilation outside a host app:
+//   printf 'rootProject.name = "t"\n' > android/settings.gradle
+//   ../android-sdk/gradlew -p android assembleRelease \
+//       -PtolinkuFlutterJar="$HOME/snap/flutter/common/flutter/bin/cache/artifacts/engine/android-arm/flutter.jar" \
+//       -Pandroid.useAndroidX=true
+//   rm android/settings.gradle
+
+buildscript {
+    ext.kotlin_version = "1.9.22"
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath("com.android.tools.build:gradle:8.1.4")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version")
+    }
+}
+
+apply plugin: "com.android.library"
+apply plugin: "kotlin-android"
+
+android {
+    namespace "com.tolinku.tolinku"
+    compileSdk 34
+
+    defaultConfig {
+        // The Install Referrer library requires 21.
+        minSdk 21
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = "1.8"
+    }
+
+    lintOptions {
+        abortOnError false
+    }
+}
+
+repositories {
+    google()
+    mavenCentral()
+}
+
+dependencies {
+    // The Flutter embedding is supplied by the Flutter tool in a host app. A jar
+    // is accepted here only so compilation can be checked outside one.
+    def flutterJar = project.findProperty("tolinkuFlutterJar")
+    if (flutterJar) {
+        compileOnly files(flutterJar)
+    }
+
+    implementation "com.android.installreferrer:installreferrer:2.2"
+}

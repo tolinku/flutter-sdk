@@ -1,10 +1,16 @@
-import 'package:test/test.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:tolinku/src/install_referrer.dart';
+import 'package:tolinku/src/install_referrer_native.dart';
 
 /// The Play referrer is a shared string: a developer's own campaign parameters
 /// sit beside ours, so the token has to be found among the pairs rather than
 /// taken as the whole value.
 void main() {
+  debugDefaultTargetPlatformOverride = TargetPlatform.android;
+  _channelTests();
+
   group('parseInstallReferrer', () {
     test('reads the token when it is the only pair', () {
       expect(parseInstallReferrer('tolk_token=ABC123'), 'ABC123');
@@ -47,6 +53,39 @@ void main() {
 
     test('survives malformed percent encoding', () {
       expect(parseInstallReferrer('tolk_token=ABC%ZZ'), 'ABC%ZZ');
+    });
+  });
+}
+
+/// The plugin channel. Verified against the Kotlin side, which answers
+/// `getInstallReferrer` on `com.tolinku/install_referrer` with the raw referrer
+/// string or null.
+void _channelTests() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  const channel = MethodChannel('com.tolinku/install_referrer');
+  final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+
+  group('readInstallReferrer', () {
+    tearDown(() => messenger.setMockMethodCallHandler(channel, null));
+
+    test('returns the referrer the platform reports', () async {
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        expect(call.method, 'getInstallReferrer');
+        return 'utm_source=x&tolk_token=FROM_PLAY';
+      });
+      expect(await readInstallReferrer(), 'utm_source=x&tolk_token=FROM_PLAY');
+    });
+
+    test('returns null when there is nothing to report', () async {
+      messenger.setMockMethodCallHandler(channel, (call) async => null);
+      expect(await readInstallReferrer(), isNull);
+    });
+
+    test('returns null rather than throwing when the plugin is missing', () async {
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        throw MissingPluginException('no implementation');
+      });
+      expect(await readInstallReferrer(), isNull);
     });
   });
 }
