@@ -18,6 +18,11 @@
   a dropped request leaves the next launch free to try again rather than
   spending the install's one chance at attribution on a bad connection.
 
+- Token claims now name their Appspace. It narrows what a token may claim, never
+  widens it, and it is what lets a failed claim be counted: the default host
+  resolves to no Appspace, so a miss previously belonged to nobody and the
+  reported referrer match rate would have read 100% regardless.
+
 ### Fixed
 
 - The SDK version in the `User-Agent` reported 0.1.0 through two releases. A test

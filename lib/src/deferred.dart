@@ -21,7 +21,7 @@ class Deferred {
   /// Throws [ArgumentError] if [token] is empty.
   /// Throws [TolinkuException] if the request fails for reasons other than
   /// "not found".
-  Future<DeferredLink?> claim({required String token}) async {
+  Future<DeferredLink?> claim({required String token, String? appspaceId}) async {
     if (token.trim().isEmpty) {
       throw ArgumentError.value(
         token,
@@ -33,7 +33,13 @@ class Deferred {
     try {
       final data = await _httpClient.get(
         '/v1/api/deferred/claim',
-        queryParams: {'token': token},
+        // appspaceId narrows what the token may claim, never widens it, and it
+        // is what lets a failed claim be attributed: the default host resolves
+        // to no Appspace, so without it a miss belongs to nobody.
+        queryParams: {
+          'token': token,
+          if (appspaceId != null) 'appspace_id': appspaceId,
+        },
         authenticated: false,
       );
       return DeferredLink.fromJson(data);
@@ -86,7 +92,7 @@ class Deferred {
       }
       if (token != null) {
         try {
-          final byToken = await claim(token: token);
+          final byToken = await claim(token: token, appspaceId: appspaceId);
           if (byToken != null) {
             await _rememberAttempt();
             return byToken;
