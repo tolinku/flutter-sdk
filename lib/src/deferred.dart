@@ -21,6 +21,14 @@ class Deferred {
   /// Throws [ArgumentError] if [token] is empty.
   /// Throws [TolinkuException] if the request fails for reasons other than
   /// "not found".
+  ///
+  /// Prefer [claimByToken], which is the name every other Tolinku SDK uses.
+  /// This one is kept because it is what 0.3.0 shipped and breaking it would
+  /// serve nobody. It is intended for deprecation in a later release, once
+  /// enough time has passed that moving is a one-line change rather than a
+  /// surprise; it is deliberately not marked deprecated yet, because doing so
+  /// would put an analyzer warning in every existing integration today for a
+  /// rename that changes nothing about behaviour.
   Future<DeferredLink?> claim({required String token, String? appspaceId}) async {
     if (token.trim().isEmpty) {
       throw ArgumentError.value(
@@ -48,6 +56,23 @@ class Deferred {
       rethrow;
     }
   }
+
+  /// Claims a deferred deep link by its [token].
+  ///
+  /// The same call as [claim], under the name the other Tolinku SDKs use. This
+  /// package shipped it as `claim`, so both work and neither is deprecated:
+  /// existing code keeps compiling, and code moved across from the Android,
+  /// iOS, React Native or web SDKs compiles too, rather than failing on a name
+  /// that exists everywhere except here.
+  ///
+  /// Prefer [claimDeferredLink] over either of these unless you already hold a
+  /// token: it asks the Play Install Referrer first and only falls back to
+  /// device signals.
+  Future<DeferredLink?> claimByToken({
+    required String token,
+    String? appspaceId,
+  }) =>
+      claim(token: token, appspaceId: appspaceId);
 
   /// Recovers the link that led to this install, trying both mechanisms.
   ///

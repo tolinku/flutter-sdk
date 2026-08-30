@@ -13,6 +13,13 @@
   hours after the click. The platform is declared as Android alone, so an
   iOS-only app never builds it.
 
+- `claimByToken()` as a second name for `claim()`. It is what the Android, iOS,
+  React Native and web SDKs call the same operation, so code moved between them
+  no longer fails on a name that exists everywhere except here. Both work and
+  neither is deprecated: `claim()` is what 0.3.0 shipped, and it is intended for
+  deprecation only once moving off it is a one-line change rather than a
+  surprise.
+
 - `claimDeferredLink()` runs once per install and remembers it, so calling it on
   every launch costs nothing after the first. Only a real answer is remembered:
   a dropped request leaves the next launch free to try again rather than
