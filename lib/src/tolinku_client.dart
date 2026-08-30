@@ -190,11 +190,22 @@ class Tolinku {
     await _ecommerce.flush();
   }
 
+  /// Tears down the SDK and releases its resources.
+  ///
+  /// The name the other Tolinku SDKs use for this. [dispose] does the same
+  /// thing and still works; it is what this package shipped, and `dispose` is
+  /// also the ordinary Dart name for it, so it is not going anywhere soon.
+  /// [destroy] exists so an app sharing code across platforms can call one name
+  /// everywhere.
+  Future<void> destroy() => dispose();
+
   /// Closes the underlying HTTP client and resets the singleton.
   ///
   /// Flushes any remaining analytics and ecommerce events before cleaning up.
   /// After calling this, [configure] must be called again before using the
   /// SDK.
+  ///
+  /// [destroy] is the same call under the name the other Tolinku SDKs use.
   Future<void> dispose() async {
     await _analytics.dispose();
     await _ecommerce.dispose();

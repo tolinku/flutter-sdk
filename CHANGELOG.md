@@ -13,6 +13,11 @@
   hours after the click. The platform is declared as Android alone, so an
   iOS-only app never builds it.
 
+- `destroy()` tears the SDK down. The name every Tolinku SDK uses for this.
+  `dispose()` does the same thing and still works, and is also the ordinary Dart
+  name for it, so it is not going anywhere soon. `destroy()` exists so an app
+  sharing code across platforms can call one name everywhere.
+
 - `claimByToken()` as a second name for `claim()`. It is what the Android, iOS,
   React Native and web SDKs call the same operation, so code moved between them
   no longer fails on a name that exists everywhere except here. Both work and
