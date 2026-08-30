@@ -7,7 +7,7 @@ import 'package:http/http.dart' as http;
 import 'exceptions.dart';
 
 /// SDK version constant.
-const String tolinkuSdkVersion = '0.1.0';
+const String tolinkuSdkVersion = '0.4.0';
 
 /// Maximum number of retry attempts for failed requests.
 const int _maxRetries = 3;

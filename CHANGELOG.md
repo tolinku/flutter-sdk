@@ -1,3 +1,23 @@
+## 0.4.0
+
+### Added
+
+- `claimDeferredLink()` recovers the link that led to an install, asking the Play
+  Install Referrer first and falling back to device signal matching. Call it once
+  on first launch instead of choosing between `claim` and `claimBySignals`
+  yourself.
+- The package is now a Flutter plugin on Android and reads the Play Install
+  Referrer itself, so nothing extra needs installing. Android links already
+  carried a referrer token to the store and nothing read it back, which left
+  every install matched only by device signals: probabilistic, and expiring two
+  hours after the click. The platform is declared as Android alone, so an
+  iOS-only app never builds it.
+
+### Fixed
+
+- The SDK version in the `User-Agent` reported 0.1.0 through two releases. A test
+  now fails if the constant drifts from `pubspec.yaml`.
+
 ## 0.3.0
 
 - `claimBySignals` now explains itself when it returns null. Previously a wrong

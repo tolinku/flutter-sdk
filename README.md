@@ -162,6 +162,25 @@ final link = await deferred.claimBySignals(
 );
 ```
 
+On Android the Play Install Referrer is the deterministic mechanism: a Tolinku
+link attaches a token to the store URL, Play keeps it through the install, and
+this SDK reads it back on first launch. It names the exact click, survives for
+days, and does not depend on the network the device was on. Device signals are
+the fallback, and the only option on iOS, where no equivalent exists.
+
+Prefer `claimDeferredLink()` over choosing a mechanism yourself:
+
+```dart
+// Referrer first, device signals as the fallback.
+final link = await tolinku.deferred.claimDeferredLink(
+  appspaceId: '64f0a1b2c3d4e5f60718',
+);
+if (link != null) routeTo(link.deepLinkPath);
+```
+
+Call it once on first launch. Calling again is safe, but a claim is consumed the
+first time it succeeds, so a second call returns nothing.
+
 `appspaceId` is your Appspace ID, not your subdomain or slug. Copy it from the dashboard
 under **Integrate** or **Settings**.
 
