@@ -13,6 +13,11 @@
   hours after the click. The platform is declared as Android alone, so an
   iOS-only app never builds it.
 
+- `claimDeferredLink()` runs once per install and remembers it, so calling it on
+  every launch costs nothing after the first. Only a real answer is remembered:
+  a dropped request leaves the next launch free to try again rather than
+  spending the install's one chance at attribution on a bad connection.
+
 ### Fixed
 
 - The SDK version in the `User-Agent` reported 0.1.0 through two releases. A test

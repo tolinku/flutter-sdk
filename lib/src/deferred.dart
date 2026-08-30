@@ -1,4 +1,6 @@
 import 'exceptions.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import 'install_referrer.dart';
 import 'install_referrer_native.dart';
 import 'http_client.dart';
@@ -58,6 +60,7 @@ class Deferred {
   Future<DeferredLink?> claimDeferredLink({
     required String appspaceId,
     ReferrerProvider? referrerProvider,
+    bool force = false,
   }) async {
     if (appspaceId.trim().isEmpty) {
       throw ArgumentError.value(
@@ -66,6 +69,11 @@ class Deferred {
         'Appspace ID must not be empty.',
       );
     }
+
+    // Claiming is a first-launch action, but nothing stops an app calling this
+    // on every launch. Each repeat costs a request and records a miss, so a
+    // healthy integration would report a match rate near zero.
+    if (!force && await _alreadyAttempted()) return null;
 
     final provider = referrerProvider ?? nativeReferrerProvider;
     {
@@ -79,14 +87,44 @@ class Deferred {
       if (token != null) {
         try {
           final byToken = await claim(token: token);
-          if (byToken != null) return byToken;
+          if (byToken != null) {
+            await _rememberAttempt();
+            return byToken;
+          }
         } on TolinkuException {
           // Fall through to signals: the install still happened.
         }
       }
     }
 
-    return claimBySignals(appspaceId: appspaceId);
+    // claimBySignals returns null only for a 404, a real "nothing waiting", and
+    // rethrows anything else. So reaching past it means the server answered,
+    // and only an answer is worth remembering: recording a dropped request
+    // would spend the install's one chance at attribution on a bad connection.
+    final bySignals = await claimBySignals(appspaceId: appspaceId);
+    await _rememberAttempt();
+    return bySignals;
+  }
+
+  static const String _claimedKey = 'tolinku_deferred_claimed';
+
+  Future<bool> _alreadyAttempted() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.containsKey(_claimedKey);
+    } catch (_) {
+      // Storage unavailable: attempt the claim rather than skip it.
+      return false;
+    }
+  }
+
+  Future<void> _rememberAttempt() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_claimedKey, DateTime.now().toIso8601String());
+    } catch (_) {
+      // Not worth failing a claim that already succeeded.
+    }
   }
 
   /// Claims a deferred deep link by matching device signals.
