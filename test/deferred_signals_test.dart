@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:tolinku/src/deferred.dart';
 import 'package:tolinku/src/http_client.dart';
 import 'package:tolinku/tolinku.dart';
 
@@ -68,21 +67,19 @@ void main() {
       expect(body['os_version'], '17.4');
     });
 
-    test('omits signals the caller did not supply', () async {
+    test('never sends the Appspace ID alone', () async {
+      // A claim with nothing to compare cannot match, because the matcher only
+      // compares fields present on both the click and the claim. The caller
+      // supplying nothing is a reason to read the device, not to send an empty
+      // claim. This SDK sent one until 0.4.1.
       final deferred = Deferred(clientReturning(200, okBody));
 
       await deferred.claimBySignals(appspaceId: '64f0a1b2c3d4e5f60718');
 
-      final body = sentBodies.single;
-      expect(body.keys, ['appspace_id']);
-      // A signal the caller cannot provide must be absent rather than null or
-      // zero: the server only compares a signal when both sides supplied it, and
-      // a placeholder value would register as a disagreement.
-      expect(body.containsKey('device_pixel_ratio'), isFalse);
-      expect(body.containsKey('os_version'), isFalse);
+      expect(sentBodies.single.keys, isNot(equals(['appspace_id'])));
     });
 
-    test('sends a partial set unchanged', () async {
+    test('keeps a partial set and fills the rest from the device', () async {
       final deferred = Deferred(clientReturning(200, okBody));
 
       await deferred.claimBySignals(
@@ -94,8 +91,18 @@ void main() {
       final body = sentBodies.single;
       expect(body['timezone'], 'Asia/Seoul');
       expect(body['device_pixel_ratio'], 2.0);
-      expect(body.containsKey('language'), isFalse);
-      expect(body.containsKey('screen_width'), isFalse);
+    });
+
+    test('a signal that cannot be read is absent, not null or zero', () async {
+      // The server compares a signal only when both sides supplied it, so a
+      // placeholder would register as a disagreement rather than as silence.
+      final deferred = Deferred(clientReturning(200, okBody));
+
+      await deferred.claimBySignals(appspaceId: '64f0a1b2c3d4e5f60718');
+
+      for (final value in sentBodies.single.values) {
+        expect(value, isNotNull);
+      }
     });
 
     test('posts to the claim-by-signals endpoint', () async {

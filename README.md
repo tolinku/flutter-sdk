@@ -168,7 +168,11 @@ this SDK reads it back on first launch. It names the exact click, survives for
 days, and does not depend on the network the device was on. Device signals are
 the fallback, and the only option on iOS, where no equivalent exists.
 
-Prefer `claimDeferredLink()` over choosing a mechanism yourself:
+There are two supported ways to claim, and neither is going away. They differ
+only in how much the SDK does for you, not in how well they match.
+
+**`claimDeferredLink()`** tries the referrer, falls back to signals, reads the
+device signals it can, and remembers that it asked:
 
 ```dart
 // Referrer first, device signals as the fallback.
@@ -177,6 +181,46 @@ final link = await tolinku.deferred.claimDeferredLink(
 );
 if (link != null) routeTo(link.deepLinkPath);
 ```
+
+**`claimBySignals()`** goes straight to signal matching, leaving the mechanism
+and the claim-once bookkeeping to you:
+
+```dart
+final link = await tolinku.deferred.claimBySignals(
+  appspaceId: '64f0a1b2c3d4e5f60718',
+);
+```
+
+Both collect the device signals themselves, so neither needs anything beyond the
+Appspace ID. Both also accept the signals as parameters, and anything you pass is
+used ahead of what is collected:
+
+```dart
+final link = await tolinku.deferred.claimBySignals(
+  appspaceId: '64f0a1b2c3d4e5f60718',
+  timezone: 'Asia/Seoul',   // used instead of the collected value
+);
+```
+
+Choosing between them costs you nothing in control.
+
+It collects all four signals matching actually compares, so on iOS you can call
+it with nothing but the Appspace ID and still get a full match:
+
+| Signal | Read from |
+|---|---|
+| `language`, `screenWidth`, `screenHeight`, `devicePixelRatio` | Dart |
+| `timezone` | the bundled Android and iOS plugins |
+
+Timezone is read natively because Dart cannot express it in the form matching
+compares against: matching wants an IANA identifier such as `Asia/Seoul`, which
+is what the browser records at click time, and `DateTime.now().timeZoneName`
+gives only `KST`. Sending the abbreviation would be worse than sending nothing,
+since an absent signal is skipped while a present one that disagrees counts as a
+failed comparison. `osVersion` is read the same way and sent for completeness,
+though the click side does not currently record it.
+
+If you have better values from elsewhere, pass them and they win.
 
 Call it once on first launch. Calling again is safe, but a claim is consumed the
 first time it succeeds, so a second call returns nothing.
@@ -294,8 +338,10 @@ await Tolinku.instance.dispose();
 
 | Method | Description |
 |--------|-------------|
-| `claim(token:)` | Claim a deferred link by token |
+| `claimDeferredLink(appspaceId:, ...signals, referrerProvider:, force:)` | Claim via the Play Install Referrer, falling back to device signals |
 | `claimBySignals(appspaceId:, timezone:, language:, screenWidth:, screenHeight:, devicePixelRatio:, osVersion:)` | Claim a deferred link by device signals |
+| `claimByToken(token:, appspaceId:)` | Claim a deferred link by token |
+| `claim(token:, appspaceId:)` | Alias of `claimByToken` |
 
 ### `tolinku.messages`
 

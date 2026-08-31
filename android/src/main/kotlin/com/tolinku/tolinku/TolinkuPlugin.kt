@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 class TolinkuPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
 
     private var channel: MethodChannel? = null
+    private var signalsChannel: MethodChannel? = null
     private var context: Context? = null
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
@@ -32,15 +33,35 @@ class TolinkuPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
         channel = MethodChannel(binding.binaryMessenger, CHANNEL).also {
             it.setMethodCallHandler(this)
         }
+        signalsChannel = MethodChannel(binding.binaryMessenger, CHANNEL_SIGNALS).also {
+            it.setMethodCallHandler(this)
+        }
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         channel?.setMethodCallHandler(null)
         channel = null
+        signalsChannel?.setMethodCallHandler(null)
+        signalsChannel = null
         context = null
     }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
+        // Signals Dart cannot express in the form matching compares against: an
+        // IANA timezone rather than an abbreviation, and a version starting with
+        // a digit rather than "Android 13 (API 33)". A signal that is absent is
+        // skipped, while one present and disagreeing counts as a failed
+        // comparison, so the format is the whole point of reading them here.
+        if (call.method == METHOD_GET_SIGNALS) {
+            result.success(
+                mapOf(
+                    "timezone" to java.util.TimeZone.getDefault().id,
+                    "os_version" to android.os.Build.VERSION.RELEASE,
+                )
+            )
+            return
+        }
+
         if (call.method != METHOD_GET_REFERRER) {
             result.notImplemented()
             return
@@ -102,6 +123,8 @@ class TolinkuPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
 
     private companion object {
         const val CHANNEL = "com.tolinku/install_referrer"
+        const val CHANNEL_SIGNALS = "com.tolinku/device_signals"
         const val METHOD_GET_REFERRER = "getInstallReferrer"
+        const val METHOD_GET_SIGNALS = "getDeviceSignals"
     }
 }

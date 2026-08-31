@@ -14,4 +14,19 @@ void main() {
         .trim();
     expect(tolinkuSdkVersion, declared);
   });
+
+  test('the iOS podspec matches pubspec', () {
+    // CocoaPods resolves the iOS side by this version. Drift here is the same
+    // failure the test above exists for, one build system further out.
+    final podspec = File('ios/tolinku.podspec').readAsStringSync();
+    final pubspec = File('pubspec.yaml').readAsLinesSync();
+    final declared = pubspec
+        .firstWhere((l) => l.startsWith('version:'))
+        .split(':')[1]
+        .trim();
+
+    final match = RegExp(r"s\.version\s*=\s*'([^']+)'").firstMatch(podspec);
+    expect(match, isNotNull, reason: 'no s.version in the podspec');
+    expect(match!.group(1), declared);
+  });
 }

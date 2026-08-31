@@ -1,3 +1,56 @@
+## 0.4.1
+
+### Fixed
+
+- `claimDeferredLink()` could never match on device signals. It called
+  `claimBySignals()` with the Appspace ID and nothing else, and matching only
+  compares fields present on both the click and the claim, so every candidate
+  was incomparable and the fallback returned `null` every time. On Android the
+  Play Install Referrer usually covered it. On iOS, where signals are the only
+  mechanism, the method never matched at all.
+
+  It now collects and sends every signal matching compares, and accepts
+  `timezone`, `language`, `screenWidth`, `screenHeight`, `devicePixelRatio` and
+  `osVersion` to override any of them. Upgrading is enough; nothing needs
+  passing.
+
+- `claimBySignals()` collects the device signals too, rather than sending only
+  what the caller passed. Called with just an Appspace ID it sent a claim with
+  nothing to compare, which could never match, and it was the only Tolinku SDK
+  that behaved that way: the iOS, Android, React Native and web SDKs all collect
+  their own. Signals you pass still take precedence, so an existing call that
+  supplies all of them behaves exactly as before.
+
+### Added
+
+- iOS is now a plugin platform. Deferred linking on iOS has no equivalent of the
+  Play Install Referrer, so signal matching is the entire mechanism there, and
+  the timezone is the one signal Dart cannot express in the form matching
+  compares against: it offers `KST` where matching wants `Asia/Seoul`, which is
+  what the browser records at click time. A signal that is absent is skipped,
+  while one that is present and disagrees counts as a failed comparison, so it
+  is read natively rather than approximated. Android reports it the same way.
+
+  An iOS build now compiles a small Swift file and runs `pod install`. Both are
+  handled by the normal Flutter build.
+
+- `collectAllDeviceSignals()`, `readPlatformSignals()` and `DeviceSignals` are
+  exported, for apps that want to see or adjust what would be sent.
+
+- `isSafeUrl()` is exported, and in-app message navigation now uses it. A message
+  is rendered in a WebView and can ask the app to navigate, so the URL it names
+  crosses from page content into native code. Only `http` and `https` are passed
+  on; a `javascript:`, `file:`, `content:` or `intent:` URL is blocked and logged
+  in debug mode. The iOS, Android, React Native and web SDKs already applied this
+  rule, and this package was the only one that did not.
+
+### Changed
+
+- `claimBySignals()` and `claimDeferredLink()` are documented as equal choices
+  rather than one being preferred. Both are supported and neither is deprecated:
+  `claimBySignals()` takes the signals you pass and leaves the mechanism and the
+  claim-once bookkeeping to you, `claimDeferredLink()` handles all three.
+
 ## 0.4.0
 
 ### Added

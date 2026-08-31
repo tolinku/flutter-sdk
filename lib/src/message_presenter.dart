@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
+import 'http_client.dart' show tolinkuDebugLog;
 import 'models.dart';
+import 'validation.dart';
 
 /// Prefix used for SharedPreferences keys that track dismissed messages.
 const String _dismissPrefix = 'tolinku_dismissed_';
@@ -185,9 +187,17 @@ class _MessageDialogState extends State<_MessageDialog> {
           _dismiss();
         case 'navigate':
           final url = data['url'] as String?;
-          if (url != null) {
+          // The URL comes from page content, so it is checked before it reaches
+          // the host app rather than left for the app to check. Android does the
+          // same on both of its paths; this SDK used to do it on neither.
+          if (url != null && isSafeUrl(url)) {
             _dismiss();
             widget.onAction?.call(url);
+          } else if (url != null) {
+            tolinkuDebugLog(
+              'Blocked navigation to an unsafe URL scheme: $url. '
+              'Message actions may only use http or https.',
+            );
           }
         default:
           break;

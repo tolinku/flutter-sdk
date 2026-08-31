@@ -1,6 +1,8 @@
 import 'exceptions.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'device_signals.dart';
+import 'device_signals_native.dart';
 import 'install_referrer.dart';
 import 'install_referrer_native.dart';
 import 'http_client.dart';
@@ -65,9 +67,9 @@ class Deferred {
   /// iOS, React Native or web SDKs compiles too, rather than failing on a name
   /// that exists everywhere except here.
   ///
-  /// Prefer [claimDeferredLink] over either of these unless you already hold a
-  /// token: it asks the Play Install Referrer first and only falls back to
-  /// device signals.
+  /// Use this when you already hold a token. To have the token looked up for
+  /// you, see [claimDeferredLink]. Neither is preferred over the other; they
+  /// differ in how much the SDK does on your behalf.
   Future<DeferredLink?> claimByToken({
     required String token,
     String? appspaceId,
@@ -88,8 +90,37 @@ class Deferred {
   /// extra needs installing. Pass [referrerProvider] only to override that,
   /// for instance in a test. Where the plugin is unavailable the lookup simply
   /// returns nothing and Android falls back to signal matching.
+  ///
+  /// Device signals are collected for you, so nothing needs passing. Language,
+  /// screen size and pixel ratio come from Dart; timezone and OS version come
+  /// from this package's own Android and iOS plugins, because Dart cannot
+  /// express either in the form matching compares against (it offers `KST`
+  /// where matching wants `Asia/Seoul`).
+  ///
+  /// Pass any of [timezone], [language], [screenWidth], [screenHeight],
+  /// [devicePixelRatio] or [osVersion] to override one; a value given here is
+  /// always used ahead of the collected one. Signals are skipped when absent
+  /// rather than counted as a failed comparison, so a signal that cannot be
+  /// read costs nothing beyond a weaker match.
+  ///
+  /// Returns `null` when nothing is waiting for this device, which is the
+  /// ordinary outcome for an organic install.
+  ///
+  /// Throws [TolinkuException] if the server answers with anything other than a
+  /// 404, and rethrows a network failure. Both are surfaced rather than
+  /// swallowed, because the usual cause is a misconfiguration worth seeing: a
+  /// 403 means the Appspace ID is wrong or belongs to another domain. Wrap the
+  /// call if a first launch must never fail on it. Nothing is recorded as
+  /// attempted unless the server actually answered, so a claim lost to a bad
+  /// connection is retried on the next launch rather than spent.
   Future<DeferredLink?> claimDeferredLink({
     required String appspaceId,
+    String? timezone,
+    String? language,
+    int? screenWidth,
+    int? screenHeight,
+    double? devicePixelRatio,
+    String? osVersion,
     ReferrerProvider? referrerProvider,
     bool force = false,
   }) async {
@@ -132,7 +163,23 @@ class Deferred {
     // rethrows anything else. So reaching past it means the server answered,
     // and only an answer is worth remembering: recording a dropped request
     // would spend the install's one chance at attribution on a bad connection.
-    final bySignals = await claimBySignals(appspaceId: appspaceId);
+    // Signals have to be carried through. The matcher only compares fields
+    // present on both sides, so claiming with none of them makes every candidate
+    // incomparable and the call can never match. Anything the caller passed wins
+    // over what the device reports, since a value from a platform plugin is
+    // better than one inferred here.
+    // Signals are collected by claimBySignals, which anything passed here
+    // overrides. Collecting again first would only ask the platform channel for
+    // the same values twice.
+    final bySignals = await claimBySignals(
+      appspaceId: appspaceId,
+      timezone: timezone,
+      language: language,
+      screenWidth: screenWidth,
+      screenHeight: screenHeight,
+      devicePixelRatio: devicePixelRatio,
+      osVersion: osVersion,
+    );
     await _rememberAttempt();
     return bySignals;
   }
@@ -160,9 +207,15 @@ class Deferred {
 
   /// Claims a deferred deep link by matching device signals.
   ///
-  /// [appspaceId] is required. The remaining parameters are optional because this
-  /// is a pure Dart package and cannot read device info directly; the caller
-  /// should supply them.
+  /// This is the direct call: you decide when the request goes out and you track
+  /// whether you have already claimed. [claimDeferredLink] is the same match
+  /// with the Play Install Referrer tried first and the claim-once bookkeeping
+  /// done for you. Both are fully supported and neither is going away, so pick
+  /// on how much you want the SDK to do.
+  ///
+  /// [appspaceId] is required. The signals are read from the device, and any you
+  /// pass are used in preference to what is read, so pass one only when you hold
+  /// a better value than the SDK can obtain.
   ///
   /// Supply as many as you can. Matching compares timezone, language, screen size,
   /// [devicePixelRatio] and [osVersion], and needs at least two of them to agree.
@@ -193,16 +246,25 @@ class Deferred {
     }
 
     try {
+      // Collected first, then overridden by anything the caller passed. Sending
+      // only the Appspace ID can never match, because the matcher compares only
+      // fields present on both the click and the claim and treats nothing
+      // comparable as no match, so a caller who supplies less than the full set
+      // is better served by the device's own values than by absence.
+      final signals = (await collectAllDeviceSignals()).merge(DeviceSignals(
+        timezone: timezone,
+        language: language,
+        screenWidth: screenWidth,
+        screenHeight: screenHeight,
+        devicePixelRatio: devicePixelRatio,
+        osVersion: osVersion,
+      ));
+
       final data = await _httpClient.post(
         '/v1/api/deferred/claim-by-signals',
         body: {
           'appspace_id': appspaceId,
-          if (timezone != null) 'timezone': timezone,
-          if (language != null) 'language': language,
-          if (screenWidth != null) 'screen_width': screenWidth,
-          if (screenHeight != null) 'screen_height': screenHeight,
-          if (devicePixelRatio != null) 'device_pixel_ratio': devicePixelRatio,
-          if (osVersion != null) 'os_version': osVersion,
+          ...signals.toRequestBody(),
         },
         authenticated: false,
       );
