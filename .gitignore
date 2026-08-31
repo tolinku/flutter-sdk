@@ -5,3 +5,14 @@ pubspec.lock
 .DS_Store
 .claude/
 android/.gradle/
+
+# The example app's platform folders are generated in CI rather than committed,
+# so the package stays small while the native side still gets built.
+example/ios/
+example/android/
+example/.dart_tool/
+example/build/
+example/.flutter-plugins*
+example/pubspec.lock
+example/.idea/
+example/*.iml

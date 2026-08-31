@@ -15,4 +15,52 @@ jobs:
           flutter-version: '3.24.0'
           channel: stable
       - run: flutter pub get
+      - run: flutter analyze --no-pub
       - run: flutter test
+
+  # The package ships Kotlin on Android and Swift on iOS. `flutter test` runs
+  # Dart on the host and compiles neither, so 0.4.1 shipped an iOS plugin that
+  # had never been built anywhere. These two jobs build an app against the
+  # package so a mistake in either native side fails here rather than in a
+  # user's first build after upgrading.
+  #
+  # The example app's platform folders are generated rather than committed, so
+  # the published package stays small. `flutter create` rewrites the files it
+  # templates, so the two that are ours are restored afterwards.
+  build-ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: stable
+      - name: Generate the example's iOS project
+        working-directory: example
+        run: |
+          flutter create --platforms=ios --org com.tolinku --project-name tolinku_example .
+          git checkout -- lib/main.dart pubspec.yaml
+      - name: Build iOS
+        working-directory: example
+        run: flutter build ios --no-codesign --debug
+
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: stable
+      - name: Generate the example's Android project
+        working-directory: example
+        run: |
+          flutter create --platforms=android --org com.tolinku --project-name tolinku_example .
+          git checkout -- lib/main.dart pubspec.yaml
+      - name: Build Android
+        working-directory: example
+        run: flutter build apk --debug
