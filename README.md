@@ -142,25 +142,27 @@ Recover deep link context for users who installed your app after clicking a link
 ```dart
 final deferred = Tolinku.instance.deferred;
 
-// Claim by referrer token
-final link = await deferred.claim(token: 'abc123');
+// The usual call: referrer first, device signals as the fallback.
+final link = await deferred.claimDeferredLink(
+  appspaceId: '64f0a1b2c3d4e5f60718', // your Appspace ID, from the dashboard under Settings
+);
 if (link != null) {
   print(link.deepLinkPath); // e.g. "/merchant/xyz"
 }
 
-// Claim by device signal matching
-final media = MediaQuery.of(context);
-
-final link = await deferred.claimBySignals(
-  appspaceId: '64f0a1b2c3d4e5f60718',   // your Appspace ID, from the dashboard under Settings
-  timezone: 'Asia/Seoul',                // IANA name, not an abbreviation like KST
-  language: 'ko-KR',                     // BCP-47, hyphen not underscore
-  screenWidth: media.size.width.round(), // logical pixels
-  screenHeight: media.size.height.round(),
-  devicePixelRatio: media.devicePixelRatio,
-  osVersion: Platform.operatingSystemVersion,
+// Or go straight to one mechanism.
+final byToken = await deferred.claimByToken(token: 'abc123');
+final bySignals = await deferred.claimBySignals(
+  appspaceId: '64f0a1b2c3d4e5f60718',
 );
 ```
+
+The signals are read from the device, so nothing needs passing. Pass one only
+when you hold a better value than the SDK can obtain, and pass it in the form
+matching compares against: an IANA timezone (`Asia/Seoul`, never `KST`) and a
+version starting with a digit (`17.1`, not `Version 17.1 (Build 21B74)`). A
+signal that is absent is skipped, while one that is present and disagrees counts
+against the match, so a value in the wrong shape is worse than none.
 
 On Android the Play Install Referrer is the deterministic mechanism: a Tolinku
 link attaches a token to the store URL, Play keeps it through the install, and
@@ -228,9 +230,10 @@ first time it succeeds, so a second call returns nothing.
 `appspaceId` is your Appspace ID, not your subdomain or slug. Copy it from the dashboard
 under **Integrate** or **Settings**.
 
-This SDK is pure Dart and cannot read device info itself, so the signals above are supplied
-by the caller. Matching needs at least two of them to agree, and `devicePixelRatio` is the
-strongest of them, so pass as many as you can.
+The SDK reads the signals itself: language, screen size and pixel ratio from Dart, and the
+timezone from its own Android and iOS plugins, because Dart cannot express that one in the
+form matching compares against. Matching needs at least two signals to agree, so anything
+you can add on top of what is collected only helps.
 
 ### Deep Link Parsing
 
