@@ -6,6 +6,9 @@ on:
     branches: [main]
 
 jobs:
+  # Pinned to the oldest Flutter this package claims to support, so the Dart
+  # side is held to what pubspec.yaml promises rather than to whatever is
+  # current.
   test:
     runs-on: ubuntu-latest
     steps:
@@ -31,9 +34,13 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+      # Current stable rather than the pinned floor above. What is being built
+      # here is an app generated from Flutter's own template, and an older
+      # template pins a Kotlin Gradle plugin that today's transitive
+      # dependencies will not build against. Users are on current tooling, so
+      # that is what the native side should be built with.
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0'
           channel: stable
       - name: Generate the example's iOS project
         working-directory: example
@@ -54,7 +61,6 @@ jobs:
           java-version: '17'
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0'
           channel: stable
       - name: Generate the example's Android project
         working-directory: example
