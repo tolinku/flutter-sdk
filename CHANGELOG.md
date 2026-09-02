@@ -1,3 +1,27 @@
+## 0.5.0
+
+### Added
+
+- `trackLinkOpen(url)` reports a link that opened the app without the browser
+  being involved. A Universal Link or App Link hands the app the URL directly,
+  so Tolinku is never contacted and the tap is not counted. The taps that go
+  missing are the ones from people who already have the app, so a campaign aimed
+  at existing customers reads as a failure exactly when it worked.
+
+  Call it wherever the app receives a link. Both arrivals need it: a link that
+  launches the app cold arrives somewhere different from one tapped while it is
+  already running, and instrumenting only the second misses the more common
+  case. Wiring both is safe, since the same link inside a few seconds is
+  reported once.
+
+  Only http and https links are sent. A custom scheme means Tolinku's own
+  hand-off page opened the app, and that tap was already counted when the page
+  was served.
+
+  These count and bill as clicks. An Appspace set to attribute app opens only
+  when reported, or never, is answered on the first call and nothing further is
+  sent for the rest of the launch.
+
 ## 0.4.1
 
 ### Fixed
