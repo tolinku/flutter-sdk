@@ -159,5 +159,39 @@ void main() {
     test('collection never throws, even with no platform view', () {
       expect(collectDeviceSignals, returnsNormally);
     });
+    test('a blank override does not discard what the device reported', () {
+      // An unset configuration value and a failed lookup both look like this.
+      // Taking it literally would replace a good value with one the matcher
+      // cannot use, which is the opposite of what the caller intended.
+      const collected = DeviceSignals(timezone: 'Europe/London', language: 'en-GB');
+      final merged = collected.merge(const DeviceSignals(timezone: '', language: '   '));
+
+      expect(merged.timezone, 'Europe/London');
+      expect(merged.language, 'en-GB');
+    });
+
+    test('a non-positive measurement does not discard what was reported', () {
+      const collected = DeviceSignals(
+        screenWidth: 390,
+        screenHeight: 844,
+        devicePixelRatio: 3.0,
+      );
+      final merged = collected.merge(const DeviceSignals(
+        screenWidth: 0,
+        screenHeight: -1,
+        devicePixelRatio: 0,
+      ));
+
+      expect(merged.screenWidth, 390);
+      expect(merged.screenHeight, 844);
+      expect(merged.devicePixelRatio, 3.0);
+    });
+
+    test('a real override still wins, and is trimmed', () {
+      const collected = DeviceSignals(timezone: 'Europe/London');
+      final merged = collected.merge(const DeviceSignals(timezone: '  Asia/Seoul  '));
+
+      expect(merged.timezone, 'Asia/Seoul');
+    });
   });
 }

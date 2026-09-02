@@ -36,18 +36,35 @@ class DeviceSignals {
   /// Operating system version, compared on its major component only.
   final String? osVersion;
 
-  /// This set with any non-null field of [overrides] taking precedence.
+  /// This set with any usable field of [overrides] taking precedence.
   ///
-  /// Caller-supplied values always win. An app that knows its timezone from a
-  /// platform channel should not have that discarded in favour of a guess.
+  /// Caller-supplied values win. An app that knows its timezone from a platform
+  /// channel should not have that discarded in favour of a guess.
+  ///
+  /// A blank string and a non-positive number are treated as absent rather than
+  /// as an override. They are what an unset configuration value and a failed
+  /// lookup look like, and taking them literally would discard a good value the
+  /// device reported in favour of one the matcher cannot use, which is the
+  /// opposite of what a caller passing them intends.
   DeviceSignals merge(DeviceSignals overrides) => DeviceSignals(
-        timezone: overrides.timezone ?? timezone,
-        language: overrides.language ?? language,
-        screenWidth: overrides.screenWidth ?? screenWidth,
-        screenHeight: overrides.screenHeight ?? screenHeight,
-        devicePixelRatio: overrides.devicePixelRatio ?? devicePixelRatio,
-        osVersion: overrides.osVersion ?? osVersion,
+        timezone: _text(overrides.timezone) ?? timezone,
+        language: _text(overrides.language) ?? language,
+        screenWidth: _positive(overrides.screenWidth) ?? screenWidth,
+        screenHeight: _positive(overrides.screenHeight) ?? screenHeight,
+        devicePixelRatio: _positiveDouble(overrides.devicePixelRatio) ?? devicePixelRatio,
+        osVersion: _text(overrides.osVersion) ?? osVersion,
       );
+
+  static String? _text(String? value) {
+    if (value == null) return null;
+    final trimmed = value.trim();
+    return trimmed.isEmpty ? null : trimmed;
+  }
+
+  static int? _positive(int? value) => value != null && value > 0 ? value : null;
+
+  static double? _positiveDouble(double? value) =>
+      value != null && value.isFinite && value > 0 ? value : null;
 
   /// The signals as request fields, omitting anything absent.
   Map<String, dynamic> toRequestBody() => {
