@@ -26,6 +26,11 @@ class Analytics {
   }
 
   final TolinkuHttpClient _httpClient;
+
+  /// Set once the server says this Appspace does not attribute app opens, so
+  /// the setting costs one request a launch rather than one per link.
+  bool _appOpensDisabled = false;
+
   final List<Map<String, dynamic>> _queue = [];
   Timer? _flushTimer;
   bool _disposed = false;
@@ -82,6 +87,37 @@ class Analytics {
     // Auto-flush when batch size is reached.
     if (_queue.length >= _batchSize) {
       await flush();
+    }
+  }
+
+
+  /// Reports that a link opened the app without the browser being involved.
+  ///
+  /// See `Tolinku.trackLinkOpen`, which is how apps normally reach this.
+  Future<void> trackLinkOpen(String url, {String? userId}) async {
+    if (_appOpensDisabled) return;
+
+    final trimmed = url.trim();
+    if (trimmed.isEmpty) return;
+
+    // The scheme decides, and the server checks it again. A custom scheme is
+    // the hand-off page opening the app, and that tap is already counted.
+    final uri = Uri.tryParse(trimmed);
+    if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https')) return;
+
+    try {
+      final data = await _httpClient.post(
+        '/v1/api/opens',
+        body: {
+          'url': trimmed,
+          if (userId != null) 'user_id': userId,
+        },
+        authenticated: false,
+      );
+      if (data['attribute'] == false) _appOpensDisabled = true;
+    } catch (_) {
+      // This runs on the path that routes the user somewhere. A tap that goes
+      // unrecorded is not worth interrupting that.
     }
   }
 

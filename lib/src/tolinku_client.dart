@@ -181,6 +181,34 @@ class Tolinku {
     return _analytics.track(eventType, properties: mergedProperties);
   }
 
+  /// Reports that a link opened the app, when it opened without the browser.
+  ///
+  /// Equivalent to `Tolinku.instance.analytics.trackLinkOpen(...)`, with the
+  /// user ID attached when one has been set.
+  ///
+  /// A Universal Link or App Link hands the app the URL directly, so Tolinku is
+  /// never contacted and the tap goes unrecorded. Those taps come from people
+  /// who already have your app, so leaving them out makes a re-engagement
+  /// campaign look like a failure exactly when it worked.
+  ///
+  /// Call it wherever the app receives an incoming link, passing the URL
+  /// unchanged:
+  ///
+  /// ```dart
+  /// appLinks.uriLinkStream.listen((uri) {
+  ///   Tolinku.instance.trackLinkOpen(uri.toString());
+  ///   // your own routing
+  /// });
+  /// ```
+  ///
+  /// Only http and https links are reported. A custom scheme means Tolinku's own
+  /// hand-off page opened the app, and that tap was counted when the page was
+  /// served, so passing one does nothing rather than counting it twice.
+  ///
+  /// Never throws and never blocks.
+  Future<void> trackLinkOpen(String url) =>
+      _analytics.trackLinkOpen(url, userId: _userId);
+
   /// Flushes any queued analytics events to the server.
   ///
   /// This delegates to [Analytics.flush]. Call this when the app goes to
