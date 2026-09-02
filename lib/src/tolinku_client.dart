@@ -194,12 +194,25 @@ class Tolinku {
   /// Call it wherever the app receives an incoming link, passing the URL
   /// unchanged:
   ///
+  /// Both ways a link arrives need it. The stream fires only while the app is
+  /// already running, so a link that launched the app cold arrives separately:
+  ///
   /// ```dart
+  /// // Launched by a link, app was not running.
+  /// final initial = await appLinks.getInitialAppLink();
+  /// if (initial != null) {
+  ///   Tolinku.instance.trackLinkOpen(initial.toString());
+  /// }
+  ///
+  /// // Tapped while the app was already open.
   /// appLinks.uriLinkStream.listen((uri) {
   ///   Tolinku.instance.trackLinkOpen(uri.toString());
   ///   // your own routing
   /// });
   /// ```
+  ///
+  /// Wiring both is safe. Some plugins deliver the launching link on the stream
+  /// too, and the same link arriving twice in quick succession is reported once.
   ///
   /// Only http and https links are reported. A custom scheme means Tolinku's own
   /// hand-off page opened the app, and that tap was counted when the page was

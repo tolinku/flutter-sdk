@@ -124,6 +124,24 @@ void main() {
         completes,
       );
     });
+
+    test('reports one tap once, however it was delivered', () async {
+      // Cold start and the link stream can both hand over the same tap, so an
+      // app instrumenting both paths would otherwise be billed twice for it.
+      final a = analytics();
+      await a.trackLinkOpen('https://links.example.com/promo');
+      await a.trackLinkOpen('https://links.example.com/promo');
+
+      expect(sentUris, hasLength(1));
+    });
+
+    test('still reports a different link straight after', () async {
+      final a = analytics();
+      await a.trackLinkOpen('https://links.example.com/a');
+      await a.trackLinkOpen('https://links.example.com/b');
+
+      expect(sentUris, hasLength(2));
+    });
   });
 }
 

@@ -31,6 +31,15 @@ class Analytics {
   /// the setting costs one request a launch rather than one per link.
   bool _appOpensDisabled = false;
 
+  /// The last link reported, and when. Cold start and the link stream can both
+  /// deliver the same tap, depending on the plugin, and an app instrumenting
+  /// both paths would otherwise report it twice and be billed twice. A genuine
+  /// second tap of the same link inside this window is implausible; a duplicate
+  /// delivery of one tap is not.
+  String? _lastOpenUrl;
+  DateTime? _lastOpenAt;
+  static const Duration _openDedupeWindow = Duration(seconds: 5);
+
   final List<Map<String, dynamic>> _queue = [];
   Timer? _flushTimer;
   bool _disposed = false;
@@ -104,6 +113,15 @@ class Analytics {
     // the hand-off page opening the app, and that tap is already counted.
     final uri = Uri.tryParse(trimmed);
     if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https')) return;
+
+    final now = DateTime.now();
+    if (_lastOpenUrl == trimmed &&
+        _lastOpenAt != null &&
+        now.difference(_lastOpenAt!) < _openDedupeWindow) {
+      return;
+    }
+    _lastOpenUrl = trimmed;
+    _lastOpenAt = now;
 
     try {
       final data = await _httpClient.post(
