@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'dart:io' show Platform;
+
 import 'http_client.dart';
 
 /// Regular expression for valid custom event names.
@@ -30,6 +32,20 @@ class Analytics {
   /// Set once the server says this Appspace does not attribute app opens, so
   /// the setting costs one request a launch rather than one per link.
   bool _appOpensDisabled = false;
+
+  /// Which platform this is running on, for app open attribution. Read once:
+  /// it cannot change while the app is running.
+  static final String? _platform = _detectPlatform();
+
+  static String? _detectPlatform() {
+    try {
+      if (Platform.isIOS) return 'ios';
+      if (Platform.isAndroid) return 'android';
+    } catch (_) {
+      // Platform is unavailable on the web, where this does not apply.
+    }
+    return null;
+  }
 
   /// The last link reported, and when. Cold start and the link stream can both
   /// deliver the same tap, depending on the plugin, and an app instrumenting
@@ -128,6 +144,10 @@ class Analytics {
         '/v1/api/opens',
         body: {
           'url': trimmed,
+          // The User-Agent cannot say which platform this is: this package
+          // identifies itself the same way on both. Without it an app open has
+          // no platform and lands in a blank bucket on every breakdown.
+          if (_platform != null) 'platform': _platform,
           if (userId != null) 'user_id': userId,
         },
         authenticated: false,
