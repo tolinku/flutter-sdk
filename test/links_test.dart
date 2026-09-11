@@ -20,6 +20,7 @@ import 'package:tolinku/src/links.dart';
 void main() {
   late List<Uri> requestedUrls;
   late List<Map<String, dynamic>> sentBodies;
+  late List<Map<String, String>> sentHeaders;
 
   const answer = '''
   {
@@ -38,6 +39,7 @@ void main() {
       apiKey: 'tolk_pub_test',
       httpClient: MockClient((request) async {
         requestedUrls.add(request.url);
+        sentHeaders.add(request.headers);
         if (request.body.isNotEmpty) {
           sentBodies.add(jsonDecode(request.body) as Map<String, dynamic>);
         }
@@ -50,6 +52,7 @@ void main() {
   setUp(() {
     requestedUrls = [];
     sentBodies = [];
+    sentHeaders = [];
   });
 
   test('asks the link its own host, with just the path', () async {
@@ -64,6 +67,19 @@ void main() {
     expect(link.route.prefix, 'order/{token}/receipt');
     expect(link.route.name, 'Order Receipt');
     expect(link.route.linkType, 'dynamic');
+  });
+
+  test('asks without the API key, since the host is not necessarily ours',
+      () async {
+    // The origin comes from the URL this was handed. An app resolving a link
+    // from somewhere it does not control would otherwise send the Appspace's
+    // key to a stranger.
+    await Links(client()).resolve('https://links.example.com/s7k2p9q/4821');
+
+    expect(sentHeaders.single.keys.map((k) => k.toLowerCase()),
+        isNot(contains('x-api-key')));
+    expect(sentHeaders.single.keys.map((k) => k.toLowerCase()),
+        isNot(contains('authorization')));
   });
 
   test('leaves the query string out of the question', () async {
