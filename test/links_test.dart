@@ -61,7 +61,9 @@ void main() {
     expect(sentBodies.single, {'path': '/imbwmum/1007100'});
     expect(link!.token, '1007100');
     expect(link.deepLinkPath, '/order/1007100/receipt');
-    expect(link.routePrefix, 'order/{token}/receipt');
+    expect(link.route.prefix, 'order/{token}/receipt');
+    expect(link.route.name, 'Order Receipt');
+    expect(link.route.linkType, 'dynamic');
   });
 
   test('leaves the query string out of the question', () async {

@@ -275,6 +275,28 @@ if (messages.isNotEmpty) {
 }
 ```
 
+### Resolving a Link
+
+Short links open your app but arrive as an opaque code, `/imbwmum/1007100`.
+Nothing in that URL says which route it is, and nothing on the device can work
+it out, so an app parsing the path itself does nothing and the link appears to
+fail with no error and no screen.
+
+`resolve` asks Tolinku, which answers with the route, the token and the
+canonical path. A readable URL comes back unchanged, so you can resolve
+everything rather than guessing which kind you have. It never throws: a link it
+cannot resolve is one to fall back to your own handling for.
+
+```dart
+final link = await tolinku.links.resolve(url);
+if (link != null) {
+  // link.deepLinkPath -> "/order/1007100/receipt"
+  // link.token        -> "1007100"
+  // link.route.prefix -> "order/{token}/receipt"
+  route(link.deepLinkPath);
+}
+```
+
 ## Configuration Options
 
 ```dart

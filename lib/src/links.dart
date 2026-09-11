@@ -1,20 +1,43 @@
 import 'http_client.dart';
 
+/// The route that answers a link.
+class ResolvedRoute {
+  /// Creates a resolved route.
+  const ResolvedRoute({
+    required this.prefix,
+    required this.name,
+    required this.template,
+    required this.linkType,
+  });
+
+  /// The route's prefix, which may place its token with `{token}`.
+  final String prefix;
+
+  /// The route's name, as set in the dashboard.
+  final String name;
+
+  /// Which landing page the route uses, or `none`.
+  final String template;
+
+  /// `dynamic` or `static`, or null from an older platform.
+  final String? linkType;
+}
+
 /// What a Tolinku link turned out to mean.
+///
+/// The same shape in every SDK, so an app moving between them reads one thing.
+/// The Appspace the link belongs to is deliberately not here: the app already
+/// knows which Appspace it is, and nothing about routing a link needs it.
 class ResolvedLink {
   /// Creates a resolved link.
   const ResolvedLink({
-    required this.routePrefix,
-    required this.routeName,
+    required this.route,
     required this.token,
     required this.deepLinkPath,
   });
 
-  /// The prefix of the route that answers this link.
-  final String routePrefix;
-
-  /// The route's name, as set in the dashboard.
-  final String routeName;
+  /// The route that answers this link.
+  final ResolvedRoute route;
 
   /// The token the link carried, or an empty string where it carried none.
   final String token;
@@ -93,8 +116,12 @@ class Links {
       final route = response['route'];
       if (route is! Map<String, dynamic>) return null;
       return ResolvedLink(
-        routePrefix: route['prefix'] as String? ?? '',
-        routeName: route['name'] as String? ?? '',
+        route: ResolvedRoute(
+          prefix: route['prefix'] as String? ?? '',
+          name: route['name'] as String? ?? '',
+          template: route['template'] as String? ?? '',
+          linkType: route['link_type'] as String?,
+        ),
         token: response['token'] as String? ?? '',
         deepLinkPath: response['deep_link_path'] as String? ?? '',
       );
