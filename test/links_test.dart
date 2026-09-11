@@ -81,6 +81,25 @@ void main() {
     expect(sentBodies.single, {'path': '/promo/a%2Fb'});
   });
 
+  // resolve sends its question to a host taken from the URL it was given, so an
+  // app resolving a link from somewhere it does not control is talking to a
+  // stranger. Anything but a path is a redirect waiting to happen.
+  for (final bad in const [
+    'https://evil.example.com/take-over',
+    '//evil.example.com/take-over',
+    'order/4821',
+    '',
+  ]) {
+    test('refuses an answer of ${bad.isEmpty ? "nothing" : bad}', () async {
+      final body = answer.replaceFirst('"/order/4821/receipt"', '"$bad"');
+      expect(
+        await Links(client(body: body))
+            .resolve('https://links.example.com/s7k2p9q/4821'),
+        isNull,
+      );
+    });
+  }
+
   test('says nothing for a custom scheme link', () async {
     // That one already carries the path the app wants.
     expect(await Links(client()).resolve('example://order/4821/receipt'),

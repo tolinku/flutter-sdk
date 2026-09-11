@@ -115,6 +115,18 @@ class Links {
       );
       final route = response['route'];
       if (route is! Map<String, dynamic>) return null;
+
+      // The answer went to a host taken from the URL this was given, so an app
+      // resolving a link from somewhere it does not control is talking to a
+      // stranger. The contract is a path: a full URL, or a protocol relative
+      // "//host" that reads as one, is a redirect waiting to happen in whatever
+      // the app does next.
+      final deepLinkPath = response['deep_link_path'];
+      if (deepLinkPath is! String ||
+          !deepLinkPath.startsWith('/') ||
+          deepLinkPath.startsWith('//')) {
+        return null;
+      }
       return ResolvedLink(
         route: ResolvedRoute(
           prefix: route['prefix'] as String? ?? '',
@@ -123,7 +135,7 @@ class Links {
           linkType: route['link_type'] as String?,
         ),
         token: response['token'] as String? ?? '',
-        deepLinkPath: response['deep_link_path'] as String? ?? '',
+        deepLinkPath: deepLinkPath,
       );
     } catch (_) {
       return null;
