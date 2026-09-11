@@ -7,7 +7,7 @@ import 'package:http/http.dart' as http;
 import 'exceptions.dart';
 
 /// SDK version constant.
-const String tolinkuSdkVersion = '0.5.0';
+const String tolinkuSdkVersion = '0.6.0';
 
 /// Maximum number of retry attempts for failed requests.
 const int _maxRetries = 3;
@@ -109,6 +109,36 @@ class TolinkuHttpClient {
         uri,
         headers: {
           ..._headers(authenticated),
+          'Content-Type': 'application/json',
+        },
+        body: body != null ? jsonEncode(body) : null,
+      );
+      return _handleResponse(response);
+    });
+  }
+
+  /// Sends an unauthenticated POST to a host other than the configured one.
+  ///
+  /// A few public endpoints work out which Appspace they belong to from the
+  /// hostname the request arrives on rather than from a key or an id, so a
+  /// question about a link on a customer's own domain has to be asked on that
+  /// domain. Everything else is unchanged: same timeouts, same retries.
+  Future<Map<String, dynamic>> postToOrigin(
+    String origin,
+    String path, {
+    Map<String, dynamic>? body,
+  }) async {
+    return _requestWithRetry(() async {
+      _checkDisposed();
+      final base = origin.endsWith('/')
+          ? origin.substring(0, origin.length - 1)
+          : origin;
+      final uri = Uri.parse('$base$path');
+      _debugLog('POST $uri');
+      final response = await _client.post(
+        uri,
+        headers: {
+          ..._headers(false),
           'Content-Type': 'application/json',
         },
         body: body != null ? jsonEncode(body) : null,

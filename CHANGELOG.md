@@ -1,3 +1,28 @@
+## 0.6.0
+
+### Added
+
+- `Tolinku.links.resolve(url)` turns a link the system handed the app into the
+  route and token it means.
+
+  An app receives the URL that was tapped, exactly as written. That is fine
+  while the URL is readable: `/order/1007100` says "order" and the app can route
+  it. A short link is the same route written as a code, `/imbwmum/1007100`, and
+  nothing in it says "order", nor can the code be worked out on the device. An
+  app parsing the path itself sees a first segment it has never heard of and
+  does nothing, so the link opens the app and then appears to fail: no error, no
+  screen, no clue. Short links are what the dashboard offers for sharing and
+  what a QR code carries, so this is not a rare path.
+
+  A readable URL comes back unchanged, so an app can resolve everything rather
+  than guessing which kind it has. The question goes to the link's own host,
+  which is how the platform knows the Appspace, so a link on someone else's
+  domain answers nothing. Never throws: this runs during a cold start, and an
+  exception there is the difference between a link that did not route and an app
+  that did not start.
+
+  Needs a platform new enough to answer for a whole path on `/v1/api/path`.
+
 ## 0.5.0
 
 ### Added

@@ -18,6 +18,7 @@ export 'src/analytics.dart' show Analytics;
 export 'src/ecommerce.dart' show Ecommerce, TolinkuItem;
 export 'src/referrals.dart';
 export 'src/deferred.dart';
+export 'src/links.dart';
 export 'src/messages.dart';
 export 'src/message_presenter.dart';
 export 'src/models.dart';

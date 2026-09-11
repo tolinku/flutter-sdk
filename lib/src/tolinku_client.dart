@@ -1,5 +1,6 @@
 import 'analytics.dart';
 import 'deferred.dart';
+import 'links.dart';
 import 'ecommerce.dart';
 import 'exceptions.dart';
 import 'http_client.dart';
@@ -28,6 +29,7 @@ class Tolinku {
     _ecommerce = Ecommerce(_httpClient, () => _userId);
     _referrals = Referrals(_httpClient);
     _deferred = Deferred(_httpClient);
+    _links = Links(_httpClient);
     _messages = Messages(_httpClient);
   }
 
@@ -38,6 +40,7 @@ class Tolinku {
   late final Ecommerce _ecommerce;
   late final Referrals _referrals;
   late final Deferred _deferred;
+  late final Links _links;
   late final Messages _messages;
 
   /// The current user ID for segment targeting and analytics attribution.
@@ -154,6 +157,12 @@ class Tolinku {
 
   /// Deferred deep link claiming.
   Deferred get deferred => _deferred;
+
+  /// Turning a link the app was handed into the route and token it means.
+  ///
+  /// Needed for short links, which arrive as an opaque code that nothing on the
+  /// device can interpret. See [Links.resolve].
+  Links get links => _links;
 
   /// In-app message fetching.
   Messages get messages => _messages;
