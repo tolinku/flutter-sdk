@@ -9,7 +9,7 @@ import 'package:tolinku/src/links.dart';
 /// Turning a link the system handed the app into something routable.
 ///
 /// The URL an app receives is the one that was tapped, exactly as written. A
-/// short link is an opaque code, `/imbwmum/1007100`, and nothing on the device
+/// short link is an opaque code, `/s7k2p9q/4821`, and nothing on the device
 /// can say what the code stands for. An app parsing the path itself sees a
 /// first segment it has never heard of and does nothing, so the link opens the
 /// app and appears to fail with no error and no screen.
@@ -24,9 +24,9 @@ void main() {
   const answer = '''
   {
     "route": {"prefix": "order/{token}/receipt", "name": "Order Receipt", "template": "none", "link_type": "dynamic"},
-    "token": "1007100",
-    "deep_link_path": "/order/1007100/receipt",
-    "appspace": {"name": "Tasonic", "slug": "tasonic"}
+    "token": "4821",
+    "deep_link_path": "/order/4821/receipt",
+    "appspace": {"name": "Example App", "slug": "example"}
   }
   ''';
 
@@ -54,13 +54,13 @@ void main() {
 
   test('asks the link its own host, with just the path', () async {
     final link = await Links(client())
-        .resolve('https://links.tasonic.com/imbwmum/1007100');
+        .resolve('https://links.example.com/s7k2p9q/4821');
 
     expect(requestedUrls.single.toString(),
-        'https://links.tasonic.com/v1/api/path');
-    expect(sentBodies.single, {'path': '/imbwmum/1007100'});
-    expect(link!.token, '1007100');
-    expect(link.deepLinkPath, '/order/1007100/receipt');
+        'https://links.example.com/v1/api/path');
+    expect(sentBodies.single, {'path': '/s7k2p9q/4821'});
+    expect(link!.token, '4821');
+    expect(link.deepLinkPath, '/order/4821/receipt');
     expect(link.route.prefix, 'order/{token}/receipt');
     expect(link.route.name, 'Order Receipt');
     expect(link.route.linkType, 'dynamic');
@@ -70,26 +70,26 @@ void main() {
     // A tapped link usually carries utm parameters, and they say nothing about
     // which route it is.
     await Links(client())
-        .resolve('https://links.tasonic.com/imbwmum/1007100?utm_source=qr');
-    expect(sentBodies.single, {'path': '/imbwmum/1007100'});
+        .resolve('https://links.example.com/s7k2p9q/4821?utm_source=qr');
+    expect(sentBodies.single, {'path': '/s7k2p9q/4821'});
   });
 
   test('keeps an encoded slash in the token encoded', () async {
     // Decoding first turns "/promo/a%2Fb" into a path three deep rather than a
     // token of "a/b" on "promo", which resolves to a different route or none.
-    await Links(client()).resolve('https://links.tasonic.com/promo/a%2Fb');
+    await Links(client()).resolve('https://links.example.com/promo/a%2Fb');
     expect(sentBodies.single, {'path': '/promo/a%2Fb'});
   });
 
   test('says nothing for a custom scheme link', () async {
     // That one already carries the path the app wants.
-    expect(await Links(client()).resolve('tasonic://order/1007100/receipt'),
+    expect(await Links(client()).resolve('example://order/4821/receipt'),
         isNull);
     expect(requestedUrls, isEmpty);
   });
 
   test('says nothing for something that is not a link', () async {
-    expect(await Links(client()).resolve('/order/1007100'), isNull);
+    expect(await Links(client()).resolve('/order/4821'), isNull);
     expect(await Links(client()).resolve(''), isNull);
     expect(requestedUrls, isEmpty);
   });
@@ -97,7 +97,7 @@ void main() {
   test('returns null rather than throwing into a cold start', () async {
     // This runs while the app is opening. An exception here is the difference
     // between a link that did not route and an app that did not start.
-    expect(await Links(client(status: 500)).resolve('https://links.tasonic.com/imbwmum/1'),
+    expect(await Links(client(status: 500)).resolve('https://links.example.com/s7k2p9q/1'),
         isNull);
   });
 

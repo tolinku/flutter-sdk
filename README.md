@@ -277,7 +277,7 @@ if (messages.isNotEmpty) {
 
 ### Resolving a Link
 
-Short links open your app but arrive as an opaque code, `/imbwmum/1007100`.
+Short links open your app but arrive as an opaque code, `/s7k2p9q/4821`.
 Nothing in that URL says which route it is, and nothing on the device can work
 it out, so an app parsing the path itself does nothing and the link appears to
 fail with no error and no screen.
@@ -290,8 +290,8 @@ cannot resolve is one to fall back to your own handling for.
 ```dart
 final link = await tolinku.links.resolve(url);
 if (link != null) {
-  // link.deepLinkPath -> "/order/1007100/receipt"
-  // link.token        -> "1007100"
+  // link.deepLinkPath -> "/order/4821/receipt"
+  // link.token        -> "4821"
   // link.route.prefix -> "order/{token}/receipt"
   route(link.deepLinkPath);
 }

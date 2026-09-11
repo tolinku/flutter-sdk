@@ -1,3 +1,5 @@
+# Changelog
+
 ## 0.6.0
 
 ### Added
@@ -6,8 +8,8 @@
   route and token it means.
 
   An app receives the URL that was tapped, exactly as written. That is fine
-  while the URL is readable: `/order/1007100` says "order" and the app can route
-  it. A short link is the same route written as a code, `/imbwmum/1007100`, and
+  while the URL is readable: `/order/4821` says "order" and the app can route
+  it. A short link is the same route written as a code, `/s7k2p9q/4821`, and
   nothing in it says "order", nor can the code be worked out on the device. An
   app parsing the path itself sees a first segment it has never heard of and
   does nothing, so the link opens the app and then appears to fail: no error, no
@@ -22,6 +24,12 @@
   that did not start.
 
   Needs a platform new enough to answer for a whole path on `/v1/api/path`.
+
+### Fixed
+
+- Referral links shared in short form could open the app without the referral
+  code reaching it. Resolve incoming links with `links.resolve` and the code arrives
+  with the rest of the link.
 
 ## 0.5.0
 

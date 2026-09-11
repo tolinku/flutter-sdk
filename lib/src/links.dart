@@ -49,12 +49,12 @@ class ResolvedLink {
 /// Working out what a link the system handed the app actually means.
 ///
 /// An app receives the URL that was tapped, exactly as it was written. That is
-/// fine while the URL is readable: `/order/1007100` says "order" and the app
+/// fine while the URL is readable: `/order/4821` says "order" and the app
 /// can route it. It is not fine for a short link, which is the same route
 /// written as a code:
 ///
 /// ```
-/// https://links.example.com/imbwmum/1007100
+/// https://links.example.com/s7k2p9q/4821
 /// ```
 ///
 /// Nothing in that URL says "order", and nothing about the code can be worked
