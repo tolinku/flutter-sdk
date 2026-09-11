@@ -288,7 +288,7 @@ everything rather than guessing which kind you have. It never throws: a link it
 cannot resolve is one to fall back to your own handling for.
 
 ```dart
-final link = await tolinku.links.resolve(url);
+final link = await Tolinku.instance.links.resolve(url);
 if (link != null) {
   // link.deepLinkPath -> "/order/4821/receipt"
   // link.token        -> "4821"
