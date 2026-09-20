@@ -195,7 +195,21 @@ class _MessageDialogState extends State<_MessageDialog> {
           // customer's scheme.
           if (url != null && isNavigableUrl(url)) {
             _dismiss();
-            widget.onAction?.call(url);
+            final handler = widget.onAction;
+            if (handler != null) {
+              handler(url);
+            } else {
+              // This package opens nothing itself: a message's button is most
+              // often a link into the host app, and only the host knows how to
+              // route one. Without a handler the button closes the message and
+              // does nothing else, which looks from the outside exactly like a
+              // message that works, so say so rather than let it pass.
+              tolinkuDebugLog(
+                'A message button was tapped but no onAction handler was '
+                'given, so nothing opened. Pass onAction to Tolinku.messages.'
+                'show and route the URL yourself: $url',
+              );
+            }
           } else if (url != null) {
             tolinkuDebugLog(
               'Blocked navigation to an unsafe URL scheme: $url. '

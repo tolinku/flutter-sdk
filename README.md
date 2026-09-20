@@ -254,10 +254,36 @@ Display server-configured messages as full-screen dialogs using `TolinkuMessageP
 await Tolinku.instance.messages.show(
   context,
   trigger: 'milestone',
-  onAction: (action) => print('Button tapped: $action'),
-  onDismiss: () => print('Message dismissed'),
+  onAction: handleMessageAction,
+  onDismiss: () => debugPrint('Message dismissed'),
 );
 ```
+
+**`onAction` is where a message button leads, so a message without one has
+buttons that do nothing.** This package opens no URLs itself, because the most
+valuable button in an in-app message is usually a link into your own app, and
+only your app knows how to route one. Handle both kinds:
+
+```dart
+void handleMessageAction(String action) {
+  final uri = Uri.parse(action);
+
+  // Your own scheme, or your own domain: route it in the app.
+  if (uri.scheme == 'myapp' || uri.host == 'links.myapp.com') {
+    navigatorKey.currentState?.pushNamed(uri.path);
+    return;
+  }
+
+  // Anything else is a web link. url_launcher is the usual choice; it is not
+  // a dependency of this package, so add it yourself if you want it.
+  launchUrl(uri, mode: LaunchMode.externalApplication);
+}
+```
+
+Actions can carry any scheme except the ones that execute (`javascript:`,
+`vbscript:`, `data:`, `blob:` and `file:` are refused before they reach your
+handler), so `myapp://order/4821` arrives exactly as the message author wrote
+it.
 
 You can also fetch and present messages manually:
 
