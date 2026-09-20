@@ -188,15 +188,19 @@ class _MessageDialogState extends State<_MessageDialog> {
         case 'navigate':
           final url = data['url'] as String?;
           // The URL comes from page content, so it is checked before it reaches
-          // the host app rather than left for the app to check. Android does the
-          // same on both of its paths; this SDK used to do it on neither.
-          if (url != null && isSafeUrl(url)) {
+          // the host app rather than left for the app to check. The check is a
+          // denylist rather than an allowlist because the whole point of a
+          // message on this platform is often a button into the app itself,
+          // `myapp://order/4821`, and there is no way to enumerate every
+          // customer's scheme.
+          if (url != null && isNavigableUrl(url)) {
             _dismiss();
             widget.onAction?.call(url);
           } else if (url != null) {
             tolinkuDebugLog(
               'Blocked navigation to an unsafe URL scheme: $url. '
-              'Message actions may only use http or https.',
+              'Message actions may not use javascript, vbscript, data, blob or '
+              'file, and must name a scheme.',
             );
           }
         default:
