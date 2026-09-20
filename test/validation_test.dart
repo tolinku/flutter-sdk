@@ -117,6 +117,34 @@ void main() {
       expect(isNavigableUrl('\u0000javascript:alert(1)'), isFalse);
     });
 
+    test('refuses the schemes that read local storage or wrap another URL', () {
+      // This package runs on Android, where a host handing the action to
+      // url_launcher or an Intent reaches what a browser cannot.
+      expect(isNavigableUrl('content://com.host/secret'), isFalse);
+      expect(isNavigableUrl('jar:file:///x!/y'), isFalse);
+      expect(isNavigableUrl('filesystem:file:///persistent/x'), isFalse);
+    });
+
+    test('allows an underscore in a scheme because the platforms do', () {
+      // Android registers <data android:scheme="my_app"> and hands back
+      // `my_app` from a parsed Uri, so apps ship these. RFC 3986 says no
+      // underscore, and following it to the letter dropped a real call to
+      // action without a word.
+      expect(isNavigableUrl('my_app://order/4821'), isTrue);
+      expect(isNavigableUrl('my_app_2://order/4821'), isTrue);
+      expect(isNavigableUrl('MY_APP://order/4821'), isTrue);
+      expect(isNavigableUrl('my_app:order'), isTrue);
+    });
+
+    test('widening the scheme pattern does not widen the denylist', () {
+      // A scheme still has to begin with a letter, so a leading underscore is
+      // no scheme at all, and the denied schemes are untouched by the extra
+      // character being legal further along the name.
+      expect(isNavigableUrl('_myapp://order/4821'), isFalse);
+      expect(isNavigableUrl('javascript:alert(1)'), isFalse);
+      expect(isNavigableUrl('data:text/html,x'), isFalse);
+    });
+
     test('refuses a URL that names no scheme', () {
       // There is no base to resolve a relative URL against on a device.
       expect(isNavigableUrl('example.com'), isFalse);

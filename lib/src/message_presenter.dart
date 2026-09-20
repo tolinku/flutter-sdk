@@ -133,6 +133,17 @@ class TolinkuMessagePresenter {
     await prefs.setString(shownKey, DateTime.now().toIso8601String());
   }
 
+  /// Whether a `navigate` action from the message bridge should be followed.
+  ///
+  /// One line, lifted out of the bridge handler below so there is something to
+  /// test. The dialog needs a WebView and a live BuildContext, so none of it
+  /// runs under `flutter test`, and the rule it applies was therefore asserted
+  /// nowhere: swapping `isNavigableUrl` back for [isSafeUrl] here kills every
+  /// message that links into the host app, silently, and left the whole suite
+  /// green. Now it does not.
+  @visibleForTesting
+  static bool shouldFollowMessageAction(String url) => isNavigableUrl(url);
+
   static String _buildRenderUrl(String baseUrl, String messageId, String token) {
     final base = baseUrl.endsWith('/')
         ? baseUrl.substring(0, baseUrl.length - 1)
@@ -193,7 +204,8 @@ class _MessageDialogState extends State<_MessageDialog> {
           // message on this platform is often a button into the app itself,
           // `myapp://order/4821`, and there is no way to enumerate every
           // customer's scheme.
-          if (url != null && isNavigableUrl(url)) {
+          if (url != null &&
+              TolinkuMessagePresenter.shouldFollowMessageAction(url)) {
             _dismiss();
             final handler = widget.onAction;
             if (handler != null) {

@@ -7,8 +7,9 @@
 ///
 /// This is the right rule wherever the destination is known to be a web page,
 /// and the wrong one for a message's call to action, which on a deep linking
-/// product is most often a link into the host app. See [isNavigableUrl] for
-/// that.
+/// product is most often a link into the host app. The package applies a
+/// denylist there instead, in `isNavigableUrl`, which this package uses
+/// internally and does not export, so there is nothing here to link to.
 bool isSafeUrl(String? url) {
   if (url == null) return false;
 
@@ -25,17 +26,35 @@ bool isSafeUrl(String? url) {
 }
 
 /// The schemes that can run code or forge an origin when something follows them.
+/// The schemes that run code, read local storage, or hide another scheme.
+///
+/// Longer than the browser's list because this package runs on Android, where
+/// a host handing the action to url_launcher or an Intent reaches what a
+/// browser cannot: `content:` reads a ContentProvider, which includes another
+/// app's private files wherever a permission has been granted, and `jar:` and
+/// `filesystem:` each carry a second URL inside them, so allowing either hands
+/// back whatever the rest of this set refuses.
 const Set<String> _executableSchemes = {
   'javascript',
   'vbscript',
   'data',
   'blob',
   'file',
+  'content',
+  'jar',
+  'filesystem',
 };
 
-/// Matches a scheme at the start of a URL, per RFC 3986: a letter, then letters,
-/// digits, `+`, `-` and `.`.
-final RegExp _schemePattern = RegExp(r'^([a-zA-Z][a-zA-Z\d+\-.]*):');
+/// Matches a scheme at the start of a URL.
+///
+/// RFC 3986 says a letter, then letters, digits, `+`, `-` and `.`. Underscore
+/// is allowed on top of that because the platforms this package runs on allow
+/// it: Android registers `<data android:scheme="my_app">` and reads `my_app`
+/// back out of a parsed Uri, so schemes spelled that way are already shipping
+/// in customers' apps. Holding to the letter of the RFC would drop their call
+/// to action for a spelling their own manifest accepts, which is the failure
+/// this denylist exists to stop.
+final RegExp _schemePattern = RegExp(r'^([a-zA-Z][a-zA-Z\d+\-._]*):');
 
 /// A URL's scheme, lowercased, or null when it has none.
 ///

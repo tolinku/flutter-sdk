@@ -16,13 +16,24 @@
 
   The rule is now the denylist the platform itself applies. The schemes that
   can run code or forge an origin are named and refused, and everything else is
-  left to open, because no list could hold every customer's scheme. The http
-  and https rule is unchanged everywhere else it is used, such as image
-  sources.
+  left to open, because no list could hold every customer's scheme.
+
+  To be exact about the blast radius, since an earlier draft of this note was
+  not: the message action was the only thing in this SDK that used the http and
+  https rule, so `isSafeUrl` now has no callers here. It is kept, and still
+  means what it meant, but nothing in this package is guarded by it. Message
+  artwork is not: that is rendered server side and its image sources are
+  checked there.
+
+  The denylist also names `content:`, `jar:` and `filesystem:`, which a browser
+  has no use for. This package reaches an Intent, where `content:` reads a
+  ContentProvider and the other two carry a second URL inside them.
 
 - A message with only a title and a body rendered as an empty screen, because
   the server answered nothing for a message with no designed content. That is
   a server side fix and needs no change here beyond this note.
+- A scheme containing an underscore was refused. Those are not RFC 3986, and
+  both platforms register them, so real apps use them.
 
 ## 0.6.0
 
