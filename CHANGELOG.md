@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.7.0
+
+### Fixed
+
+- A call to action in an in-app message could not open a deep link into your
+  own app.
+
+  The button's URL was checked against an http and https allowlist, so
+  `myapp://order/4821`, which on a deep linking product is the most natural
+  button a message can have, was refused before anything happened: no
+  navigation, and your own action callback was never called either. The server
+  that renders these messages has always allowed the link; only the SDK
+  declined to follow it.
+
+  The rule is now the denylist the platform itself applies. The schemes that
+  can run code or forge an origin are named and refused, and everything else is
+  left to open, because no list could hold every customer's scheme. The http
+  and https rule is unchanged everywhere else it is used, such as image
+  sources.
+
+- A message with only a title and a body rendered as an empty screen, because
+  the server answered nothing for a message with no designed content. That is
+  a server side fix and needs no change here beyond this note.
+
 ## 0.6.0
 
 ### Added
