@@ -16,7 +16,12 @@ the click that caused the install.
   s.homepage         = 'https://tolinku.com'
   s.license          = { :type => 'MIT', :file => '../LICENSE' }
   s.author           = { 'Tolinku' => 'support@tolinku.com' }
-  s.source           = { :path => '.' }
+  # Never fetched. A Flutter plugin is resolved from the local pub cache, and
+  # Flutter's podhelper points CocoaPods at that directory, so this attribute
+  # exists only to name where the source lives. `:path => '.'` failed
+  # `pod lib lint`, which requires one of git, hg, http or svn, which is why
+  # every plugin in flutter/packages names its repository here instead.
+  s.source           = { :http => 'https://github.com/tolinku/flutter-sdk/tree/main/ios' }
   s.documentation_url = 'https://pub.dev/packages/tolinku'
   # Shared with tolinku/Package.swift, which builds the same files for apps on
   # Swift Package Manager. The sources moved under tolinku/Sources so the Swift
