@@ -129,12 +129,19 @@ jobs:
           xcrun simctl install "$SIM_UDID" "$app"
 
           # --console-pty gives the app's stdout, where Dart's print lands. The
-          # app keeps running after it prints, so the launch is bounded here
-          # rather than waited on.
-          out=$(timeout 45 xcrun simctl launch --console-pty "$SIM_UDID" com.tolinku.tolinkuExample 2>&1 || true)
-          echo "$out" | tail -30
+          # app keeps running after it prints, so this reads in the background
+          # and stops as soon as the line appears. No `timeout` here: that is
+          # GNU coreutils and macOS does not ship it.
+          xcrun simctl launch --console-pty "$SIM_UDID" com.tolinku.tolinkuExample > launch.out 2>&1 &
+          launch_pid=$!
+          for _ in $(seq 1 45); do
+            grep -q 'TOLINKU_SIGNALS' launch.out 2>/dev/null && break
+            sleep 1
+          done
+          kill "$launch_pid" 2>/dev/null || true
 
-          line=$(echo "$out" | grep -m1 'TOLINKU_SIGNALS' || true)
+          tail -30 launch.out
+          line=$(grep -m1 'TOLINKU_SIGNALS' launch.out 2>/dev/null || true)
           if [ -z "$line" ]; then
             echo "The app never reported. It launched but the plugin said nothing."
             exit 1
