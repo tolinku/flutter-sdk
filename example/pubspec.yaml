@@ -13,13 +13,5 @@ dependencies:
   tolinku:
     path: ../
 
-dev_dependencies:
-  # Runs integration_test/ on a real simulator, which is the only way to see
-  # the native plugin answer rather than merely link.
-  flutter_test:
-    sdk: flutter
-  integration_test:
-    sdk: flutter
-
 flutter:
   uses-material-design: true

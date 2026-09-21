@@ -7,9 +7,32 @@ import 'package:tolinku/tolinku.dart';
 /// Swift on iOS to report the timezone. Neither is exercised by `flutter test`,
 /// which runs Dart on the host, so an app that actually builds for both is the
 /// only way a mistake in either shows up before a user hits it.
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   Tolinku.configure(apiKey: 'tolk_pub_your_key');
+  await _reportPlatformSignals();
   runApp(const ExampleApp());
+}
+
+/// Prints what the native side reports, which is how CI knows the plugin is
+/// not merely present but answering.
+///
+/// A build can only show that the plugin was linked in. Whether it is
+/// registered and replying is a different question, and an important one here,
+/// because Swift Package Manager and CocoaPods register plugins by different
+/// routes. [readPlatformSignals] never throws, so an unregistered plugin
+/// returns exactly what a device with nothing to report returns, and only
+/// looking at the values can tell those apart.
+///
+/// This prints rather than asserts because print reaches the device log, which
+/// a CI machine can read from outside the app without a debug connection.
+Future<void> _reportPlatformSignals() async {
+  final signals = await readPlatformSignals();
+  // Read by .github/workflows/ci.yml. Keep the prefix and shape in step.
+  print(
+    'TOLINKU_SIGNALS timezone=${signals.timezone ?? ''} '
+    'os_version=${signals.osVersion ?? ''}',
+  );
 }
 
 class ExampleApp extends StatelessWidget {

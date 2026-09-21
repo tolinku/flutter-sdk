@@ -103,22 +103,66 @@ jobs:
           echo "SIM_UDID=$device" >> "$GITHUB_ENV"
           xcrun simctl boot "$device" || true
           xcrun simctl bootstatus "$device" -b
-      # Bounded, because this step hung for 50 minutes on the Swift Package
-      # Manager leg the first time it ran, against 6 minutes on the CocoaPods
-      # one. A hang on a macOS runner bills at ten times the Linux rate until
-      # the job's own timeout, so a step that cannot finish should say so
-      # quickly rather than quietly spend the afternoon.
-      - name: Run the plugin on the simulator
+      # Launch the app and read what it says, rather than driving it with
+      # `flutter test integration_test`.
+      #
+      # That harness worked under CocoaPods and hung under Swift Package
+      # Manager: the device log showed SpringBoard giving the app a scene, so
+      # it built, installed and launched, and then the runner waited on a Dart
+      # VM Service that never arrived. Twice, for 50 minutes and then for 20.
+      # Whatever that is, it sits between the test runner and the app, and it
+      # is not the thing this job exists to check.
+      #
+      # So the app prints what the native side gave it and the log is read from
+      # outside. No debug connection, nothing to attach, and it answers exactly
+      # the same question: does the plugin reply when it is actually running.
+      - name: Build for the simulator
         working-directory: example
         timeout-minutes: 20
-        run: flutter test integration_test -d "$SIM_UDID"
-      # Whatever the run did or did not manage, say what the simulator saw. A
-      # hang here leaves no test output at all, and the device log is the only
-      # record of whether the app launched, crashed, or never arrived.
-      - name: What the simulator saw
-        if: always()
+        run: flutter build ios --simulator --debug
+      - name: Ask the running app what the plugin told it
+        working-directory: example
+        timeout-minutes: 10
         run: |
-          xcrun simctl spawn "$SIM_UDID" log show --last 10m --style compact \
+          app=$(find build/ios/iphonesimulator -maxdepth 1 -name '*.app' -type d | head -1)
+          if [ -z "$app" ]; then echo "no simulator .app was produced"; exit 1; fi
+          xcrun simctl install "$SIM_UDID" "$app"
+
+          # --console-pty gives the app's stdout, where Dart's print lands. The
+          # app keeps running after it prints, so the launch is bounded here
+          # rather than waited on.
+          out=$(timeout 45 xcrun simctl launch --console-pty "$SIM_UDID" com.tolinku.tolinkuExample 2>&1 || true)
+          echo "$out" | tail -30
+
+          line=$(echo "$out" | grep -m1 'TOLINKU_SIGNALS' || true)
+          if [ -z "$line" ]; then
+            echo "The app never reported. It launched but the plugin said nothing."
+            exit 1
+          fi
+          echo "reported: $line"
+
+          tz=$(echo "$line" | sed -n 's/.*timezone=\([^ ]*\).*/\1/p')
+          os=$(echo "$line" | sed -n 's/.*os_version=\([^ ]*\).*/\1/p')
+
+          # An IANA identifier, which is the form deferred matching compares
+          # against and the whole reason this is read natively. Dart offers an
+          # abbreviation such as EST, which can never equal the stored value.
+          # GMT and UTC are genuinely in the database and have no slash, so the
+          # check is "not an abbreviation" rather than "contains a slash".
+          case "$tz" in
+            */*|GMT|UTC) echo "timezone $tz is an IANA identifier" ;;
+            "") echo "no timezone: the plugin did not answer"; exit 1 ;;
+            *) echo "timezone $tz is an abbreviation, so Dart answered rather than the plugin"; exit 1 ;;
+          esac
+
+          case "$os" in
+            [0-9]*) echo "os_version $os came from the platform" ;;
+            *) echo "os_version was \"$os\", expected leading digits"; exit 1 ;;
+          esac
+      - name: What the simulator saw
+        if: failure()
+        run: |
+          xcrun simctl spawn "$SIM_UDID" log show --last 15m --style compact \
             --predicate 'processImagePath CONTAINS "Runner" OR eventMessage CONTAINS "tolinku"' \
             2>/dev/null | tail -60 || echo "no device log available"
       # A build that quietly left the plugin out still succeeds, since nothing
@@ -199,7 +243,7 @@ jobs:
           cd tolinku_module
           # The plugin as a path dependency, the way a real module would name it.
           flutter pub add "tolinku:{'path':'$GITHUB_WORKSPACE'}"
-          flutter build swift-package --build-mode=debug
+          flutter build swift-package --build-mode=debug --no-codesign
 
   build-android:
     runs-on: ubuntu-latest
