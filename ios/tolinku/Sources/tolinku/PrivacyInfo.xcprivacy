@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  What this plugin does on the device, declared for the app that embeds it.
+
+  Apple does not require a manifest for the APIs this plugin calls: it reads
+  TimeZone.current.identifier and UIDevice.current.systemVersion, and neither is
+  on the required reason API list. It is here because Tolinku is an attribution
+  SDK, and the developer shipping it has to answer for our data flows in their
+  own App Store privacy label. An absent manifest makes them guess.
+
+  This declares the iOS plugin only. The timezone and OS version it reports are
+  sent to the Tolinku API to match an install back to the click that caused it,
+  and they are compared and discarded rather than kept against a person.
+-->
+<plist version="1.0">
+<dict>
+  <key>NSPrivacyTracking</key>
+  <false/>
+  <key>NSPrivacyTrackingDomains</key>
+  <array/>
+  <key>NSPrivacyCollectedDataTypes</key>
+  <array/>
+  <key>NSPrivacyAccessedAPITypes</key>
+  <array/>
+</dict>
+</plist>

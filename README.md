@@ -17,7 +17,7 @@ Get your API key at [tolinku.com](https://tolinku.com) and check out the [docume
 flutter pub add tolinku
 ```
 
-**Requirements:** Dart SDK >=3.0.0, Flutter >=3.10.0
+**Requirements:** Dart SDK >=3.11.0, Flutter >=3.41.0
 
 ## Quick Start
 

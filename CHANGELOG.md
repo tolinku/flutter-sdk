@@ -18,7 +18,25 @@
   them, which is an internal layout change with no effect on how the plugin is
   used or imported.
 
-  The minimum iOS version is unchanged at 12.0.
+  A privacy manifest ships with the plugin, reaching apps through either
+  dependency manager. Nothing this plugin calls requires one, but an app
+  embedding an attribution SDK has to describe our data flows in its own App
+  Store privacy label, and an absent manifest leaves that to guesswork.
+
+### Changed
+
+- **Minimum Flutter is now 3.41, and minimum iOS is now 13.0.**
+
+  The Swift package depends on `FlutterFramework`, which the Flutter tool only
+  began generating in 3.41. Advertising an older Flutter alongside that
+  dependency would hand apps between 3.24 and 3.40 a package that cannot
+  resolve at all, so the two move together, as they do in Flutter's own
+  plugins. Apps on older Flutter continue to resolve tolinku 0.6.1.
+
+  iOS 13.0 is Flutter's own minimum. The previous 12.0 was a promise the
+  framework does not keep, and Swift Package Manager rejects it outright,
+  because it refuses a dependency whose deployment target sits above the
+  depending target's.
 
 ## 0.6.1
 

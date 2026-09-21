@@ -100,6 +100,70 @@ void main() {
     expect(packageSwift, contains('.target('));
   });
 
+  test('declaring FlutterFramework keeps the Flutter floor that provides it', () {
+    // The defect this test exists for, caught in review rather than by a user.
+    //
+    // `../FlutterFramework` is a package the Flutter tool generates at build
+    // time, and it only began generating it in 3.41: the same file at 3.38
+    // creates the plugin package and stops. A manifest pointing at a directory
+    // the tool never writes does not degrade to CocoaPods, it fails resolution,
+    // so advertising an older Flutter while declaring this dependency hands
+    // those apps a broken build. Flutter's own plugins raise the two together.
+    final packageSwift = File('ios/tolinku/Package.swift').readAsStringSync();
+    if (!packageSwift.contains('FlutterFramework')) return;
+
+    final constraint = File('pubspec.yaml')
+        .readAsLinesSync()
+        .firstWhere((l) => l.trimLeft().startsWith('flutter:'), orElse: () => '');
+    final version = RegExp(r'(\d+)\.(\d+)\.(\d+)').firstMatch(constraint);
+    expect(version, isNotNull,
+        reason: 'no Flutter version constraint in pubspec.yaml');
+
+    final major = int.parse(version!.group(1)!);
+    final minor = int.parse(version.group(2)!);
+    expect(
+      major > 3 || (major == 3 && minor >= 41),
+      isTrue,
+      reason: 'Package.swift depends on FlutterFramework, which the Flutter '
+          'tool only generates from 3.41, but pubspec.yaml allows $constraint',
+    );
+  });
+
+  test('the minimum iOS version is not below the one Flutter itself requires', () {
+    // flutter_tools returns 13.0 from deploymentTarget() for iOS, so anything
+    // lower is a promise the framework will not keep. It is also rejected by
+    // Swift Package Manager, which refuses a dependency whose deployment target
+    // sits above the depending target's, and the generated FlutterFramework
+    // declares 13.0.
+    final packageSwift = File('ios/tolinku/Package.swift').readAsStringSync();
+    final match = RegExp(r'\.iOS\("(\d+)\.(\d+)"\)').firstMatch(packageSwift);
+    expect(match, isNotNull);
+
+    final major = int.parse(match!.group(1)!);
+    expect(major >= 13, isTrue, reason: 'iOS ${match.group(0)} is below Flutter\'s floor of 13.0');
+  });
+
+  test('the privacy manifest reaches both build systems', () {
+    // One file, declared twice, because a resource is wired differently for
+    // each dependency manager. Shipping it to only one set of apps is worse
+    // than not shipping it: whether the embedding app can describe us then
+    // depends on how it happened to install us.
+    final manifest = File('ios/tolinku/Sources/tolinku/PrivacyInfo.xcprivacy');
+    expect(manifest.existsSync(), isTrue);
+
+    final packageSwift = File('ios/tolinku/Package.swift').readAsStringSync();
+    expect(packageSwift, contains('.process("PrivacyInfo.xcprivacy")'));
+    expect(podspec, contains('PrivacyInfo.xcprivacy'));
+    expect(podspec, contains('s.resource_bundles'));
+
+    // A manifest that does not parse is worse than none, since it ships inside
+    // every app that embeds this one and is read by Apple's tooling.
+    final xml = manifest.readAsStringSync();
+    expect(xml, contains('<plist version="1.0">'));
+    expect(xml, contains('NSPrivacyTracking'));
+    expect('<'.allMatches(xml).length, greaterThan(4));
+  });
+
   test('the package declares the Flutter framework it builds against', () {
     // Without this the target compiles against no Flutter headers, and
     // `import Flutter` in the plugin fails on the app developer's machine
