@@ -134,7 +134,13 @@ jobs:
           # GNU coreutils and macOS does not ship it.
           xcrun simctl launch --console-pty "$SIM_UDID" com.tolinku.tolinkuExample > launch.out 2>&1 &
           launch_pid=$!
-          for _ in $(seq 1 45); do
+
+          # Generous, because it costs nothing: the loop stops the moment the
+          # line appears. The first run of this failed at 45 seconds having
+          # given the app only 25 of them, since `simctl install` had spent the
+          # rest, and a debug Flutter app on a cold simulator is still starting
+          # at that point.
+          for _ in $(seq 1 180); do
             grep -q 'TOLINKU_SIGNALS' launch.out 2>/dev/null && break
             sleep 1
           done
@@ -142,6 +148,16 @@ jobs:
 
           tail -30 launch.out
           line=$(grep -m1 'TOLINKU_SIGNALS' launch.out 2>/dev/null || true)
+
+          # Second place to look. print reaches the app's stdout, which is what
+          # --console-pty captures, but it also reaches the device log, and the
+          # two have different buffering. Either one answers the question.
+          if [ -z "$line" ]; then
+            echo "nothing on stdout; asking the device log"
+            line=$(xcrun simctl spawn "$SIM_UDID" log show --last 5m --style compact \
+              --predicate 'eventMessage CONTAINS "TOLINKU_SIGNALS"' 2>/dev/null \
+              | grep -m1 'TOLINKU_SIGNALS' || true)
+          fi
           if [ -z "$line" ]; then
             echo "The app never reported. It launched but the plugin said nothing."
             exit 1
