@@ -70,9 +70,36 @@ jobs:
       # Builds the podspec on its own terms rather than as part of an app, which
       # is what catches a podspec that is malformed in ways an app build happens
       # to tolerate. Only meaningful on the CocoaPods leg.
+      # Both invocations the migration guide asks for. They differ in how the
+      # pod is linked, and a podspec can satisfy one and not the other.
       - name: Lint the podspec
         if: matrix.dependency-manager == 'cocoapods'
-        run: pod lib lint ios/tolinku.podspec --configuration=Debug --skip-tests --use-modular-headers
+        run: |
+          pod lib lint ios/tolinku.podspec --configuration=Debug --skip-tests --use-modular-headers
+          pod lib lint ios/tolinku.podspec --configuration=Debug --skip-tests --use-modular-headers --use-libraries
+      # Builds prove the plugin is present. Only running it proves the plugin
+      # answers, and readPlatformSignals returns the same empty result whether
+      # the plugin is missing or the device has nothing to say, so a build alone
+      # cannot tell those apart. See example/integration_test/plugin_test.dart.
+      - name: Boot a simulator
+        run: |
+          xcrun simctl list devices available | head -20
+          device=$(xcrun simctl list devices available --json | python3 -c "
+          import json,sys
+          data = json.load(sys.stdin)['devices']
+          for runtime, devices in sorted(data.items(), reverse=True):
+              if 'iOS' not in runtime: continue
+              for d in devices:
+                  if d.get('isAvailable') and 'iPhone' in d['name']:
+                      print(d['udid']); raise SystemExit
+          raise SystemExit('no available iPhone simulator')
+          ")
+          echo "SIM_UDID=$device" >> "$GITHUB_ENV"
+          xcrun simctl boot "$device" || true
+          xcrun simctl bootstatus "$device" -b
+      - name: Run the plugin on the simulator
+        working-directory: example
+        run: flutter test integration_test -d "$SIM_UDID"
       # A build that quietly left the plugin out still succeeds, since nothing
       # in the example app's Dart calls into it at compile time. This asserts
       # the compiled app actually contains the plugin.
@@ -125,6 +152,33 @@ jobs:
       - name: Build iOS on the declared floor
         working-directory: example
         run: flutter build ios --no-codesign --debug
+
+  # A Flutter module embedded in a native iOS app, which is the scenario the
+  # FlutterFramework dependency in Package.swift exists for.
+  #
+  # `flutter build swift-package` consumes plugins that support Swift Package
+  # Manager as Swift packages, and it is the path flutter/flutter#187047
+  # describes as broken for plugins that do not declare FlutterFramework. Our
+  # Package.swift declares it, and until this job nothing had ever built the
+  # arrangement that makes it necessary. Every other iOS job here builds a
+  # normal app, where the tool supplies the framework a level higher up and a
+  # missing declaration costs nothing.
+  build-add-to-app:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Build a module that depends on this plugin
+        run: |
+          mkdir -p /tmp/addtoapp
+          cd /tmp/addtoapp
+          flutter create -t module --org com.tolinku tolinku_module
+          cd tolinku_module
+          # The plugin as a path dependency, the way a real module would name it.
+          flutter pub add "tolinku:{'path':'$GITHUB_WORKSPACE'}"
+          flutter build swift-package --debug
 
   build-android:
     runs-on: ubuntu-latest
