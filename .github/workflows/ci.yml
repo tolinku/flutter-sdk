@@ -83,6 +83,12 @@ jobs:
       # cannot tell those apart. See example/integration_test/plugin_test.dart.
       - name: Boot a simulator
         run: |
+          # The simulator takes the host's timezone, and the runners sit on GMT,
+          # which is a real IANA identifier but a poor test subject: it is the
+          # one case where the native answer and Dart's abbreviation look alike.
+          # A region/city zone makes the difference visible. Best effort, since
+          # the test does not depend on it.
+          sudo systemsetup -settimezone America/New_York || true
           xcrun simctl list devices available | head -20
           device=$(xcrun simctl list devices available --json | python3 -c "
           import json,sys
@@ -97,9 +103,24 @@ jobs:
           echo "SIM_UDID=$device" >> "$GITHUB_ENV"
           xcrun simctl boot "$device" || true
           xcrun simctl bootstatus "$device" -b
+      # Bounded, because this step hung for 50 minutes on the Swift Package
+      # Manager leg the first time it ran, against 6 minutes on the CocoaPods
+      # one. A hang on a macOS runner bills at ten times the Linux rate until
+      # the job's own timeout, so a step that cannot finish should say so
+      # quickly rather than quietly spend the afternoon.
       - name: Run the plugin on the simulator
         working-directory: example
+        timeout-minutes: 20
         run: flutter test integration_test -d "$SIM_UDID"
+      # Whatever the run did or did not manage, say what the simulator saw. A
+      # hang here leaves no test output at all, and the device log is the only
+      # record of whether the app launched, crashed, or never arrived.
+      - name: What the simulator saw
+        if: always()
+        run: |
+          xcrun simctl spawn "$SIM_UDID" log show --last 10m --style compact \
+            --predicate 'processImagePath CONTAINS "Runner" OR eventMessage CONTAINS "tolinku"' \
+            2>/dev/null | tail -60 || echo "no device log available"
       # A build that quietly left the plugin out still succeeds, since nothing
       # in the example app's Dart calls into it at compile time. This asserts
       # the compiled app actually contains the plugin.
@@ -178,7 +199,7 @@ jobs:
           cd tolinku_module
           # The plugin as a path dependency, the way a real module would name it.
           flutter pub add "tolinku:{'path':'$GITHUB_WORKSPACE'}"
-          flutter build swift-package --debug
+          flutter build swift-package --build-mode=debug
 
   build-android:
     runs-on: ubuntu-latest

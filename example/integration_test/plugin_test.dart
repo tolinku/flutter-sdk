@@ -35,12 +35,21 @@ void main() {
 
     // An IANA identifier, which is the form deferred matching compares against
     // and the whole reason this is read natively. Dart offers an abbreviation
-    // here, and an abbreviation can never equal the stored value.
+    // here, such as KST or EST, and an abbreviation can never equal the value
+    // stored at click time.
+    //
+    // Most identifiers are Region/City, but a handful are legitimately a bare
+    // word: GMT and UTC are in the database, and a CI runner set to either
+    // reports one. So the check is not "contains a slash", which failed here
+    // against a runner on GMT; it is "not an abbreviation", which is the thing
+    // that would actually mean the wrong side answered.
     expect(timezone, isNotEmpty);
     expect(
-      timezone,
-      contains('/'),
-      reason: 'expected an IANA identifier such as America/New_York, got "$timezone"',
+      timezone!.contains('/') || const {'GMT', 'UTC', 'Z'}.contains(timezone),
+      isTrue,
+      reason: 'expected an IANA identifier such as America/New_York, or GMT on '
+          'a machine set to it, got "$timezone". An abbreviation here means '
+          'Dart answered rather than the plugin.',
     );
 
     // Leading digits, not the prose Platform.operatingSystemVersion returns.
