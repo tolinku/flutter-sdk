@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.6.2
+
+### Added
+
+- Swift Package Manager support on iOS.
+
+  Flutter 3.44 makes Swift Package Manager the default for iOS, and CocoaPods
+  trunk becomes read only in December 2026. This package shipped only a
+  podspec, so apps moving off CocoaPods were relying on Flutter's temporary
+  fallback to build it.
+
+  The plugin now ships `ios/tolinku/Package.swift` alongside the existing
+  podspec. Apps on CocoaPods need no changes and resolve exactly as before;
+  apps with Swift Package Manager enabled resolve the Swift package. The iOS
+  sources moved to `ios/tolinku/Sources/tolinku/` so the Swift package can see
+  them, which is an internal layout change with no effect on how the plugin is
+  used or imported.
+
+  The minimum iOS version is unchanged at 12.0.
+
 ## 0.6.1
 
 ### Fixed

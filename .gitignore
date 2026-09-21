@@ -16,3 +16,7 @@ example/.flutter-plugins*
 example/pubspec.lock
 example/.idea/
 example/*.iml
+
+# Swift Package Manager working directories, created beside ios/tolinku/Package.swift
+.build/
+.swiftpm/
