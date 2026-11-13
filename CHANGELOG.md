@@ -58,9 +58,13 @@
   test can drive the SDK without reaching the network. It is additive and
   existing calls are unaffected.
 
-- Dev tooling: `lints` 4.0 to 6.1, `test` 1.24 to 1.29. The `test` constraint
+- Dev tooling: `lints` 4.0 to 6.1, `test` 1.24 to 1.28. The `test` constraint
   is capped by what `flutter_test` allows at the oldest Flutter this package
-  supports, which is the version CI builds against.
+  supports, which is the version CI builds against: on Flutter 3.41.0,
+  `flutter_test` pins `test_api` 0.7.8 and that rules out `test` 1.29 and
+  above. A newer patch of Flutter allows more, which is exactly why the
+  constraint is set against the floor rather than against whatever is
+  installed locally.
 
 - `lints` 6 enables `use_null_aware_elements`, so twenty map literals that read
   `if (x != null) 'key': x` are now `'key': ?x`, and one unnecessary library
