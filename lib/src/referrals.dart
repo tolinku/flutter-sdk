@@ -38,8 +38,8 @@ class Referrals {
       '/v1/api/referral/create',
       body: {
         'user_id': userId,
-        if (metadata != null) 'metadata': metadata,
-        if (userName != null) 'user_name': userName,
+        'metadata': ?metadata,
+        'user_name': ?userName,
       },
     );
     return CreateReferralResponse.fromJson(data);
@@ -110,8 +110,8 @@ class Referrals {
       body: {
         'referral_code': code,
         'referred_user_id': referredUserId,
-        if (milestone != null) 'milestone': milestone,
-        if (referredUserName != null) 'referred_user_name': referredUserName,
+        'milestone': ?milestone,
+        'referred_user_name': ?referredUserName,
       },
     );
     return CompleteReferralResponse.fromJson(data);

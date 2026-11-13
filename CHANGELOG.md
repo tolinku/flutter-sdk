@@ -1,5 +1,72 @@
 # Changelog
 
+## 0.7.0
+
+### Fixed
+
+- Queued events were lost when the app went to the background.
+
+  Every other Tolinku SDK flushes on its own when the app leaves the
+  foreground: the web SDK on `beforeunload`, React Native through `AppState`,
+  iOS on `willResignActive`, Android through `ActivityLifecycleCallbacks`.
+  This package was the exception. It asked you to implement
+  `WidgetsBindingObserver` yourself and call `flush()` from
+  `didChangeAppLifecycleState`, in a doc comment on the library.
+
+  If you did not do that, every analytics and ecommerce event still sitting in
+  the batch queue was dropped each time the app was backgrounded or killed.
+  Nothing reported it, and our own documentation described batching as handled
+  for you, so there was no reason to look.
+
+  `configure` now registers the observer itself and `dispose` removes it. If
+  you already wired one up, keep it: it still works and costs nothing, because
+  the queue is empty by the time your observer runs.
+
+  Flushing happens on `hidden`, `paused` and `detached`. Not on `inactive`,
+  which fires for a pulled-down notification shade or an incoming call, where
+  the app is usually about to come straight back and flushing would send a
+  part-full batch on every interruption.
+
+  If `configure` is called before `WidgetsFlutterBinding.ensureInitialized()`,
+  there is no binding to observe and the old manual behaviour applies. The SDK
+  logs this in debug mode rather than failing to configure.
+
+  A failure during that background send is swallowed rather than raised.
+  `flush()` still rethrows for a caller who awaited it and can decide what to
+  do, but nothing awaits the flush the lifecycle starts, so letting the error
+  out would turn a failed network call on backgrounding into a reported crash.
+  Both queues put their events back on failure, so nothing is lost and the next
+  flush retries them.
+
+### Changed
+
+- The bundled Android plugin builds on Android Gradle plugin 9 as well as 8.
+  `lintOptions` was removed in AGP 9, and AGP 9 compiles Kotlin itself and
+  refuses the `kotlin-android` plugin that AGP 8 requires, so the plugin is now
+  applied only when AGP has not already done it. `compileSdk` moves to 36,
+  which Google Play has required a target of since 31 August 2026, and Java
+  source and target compatibility move from 8 to 11.
+
+  The Kotlin JVM target is now stated explicitly through
+  `kotlin.compilerOptions`. It has to agree with the Java target or the build
+  fails outright, and it cannot be left to default: AGP 9's built-in Kotlin
+  takes it from the Java target, but AGP 8 with `kotlin-android`, which is what
+  the current Flutter host template uses, takes it from the JDK running Gradle
+  instead.
+
+- `configure` accepts an `httpClient`, annotated `@visibleForTesting`, so a
+  test can drive the SDK without reaching the network. It is additive and
+  existing calls are unaffected.
+
+- Dev tooling: `lints` 4.0 to 6.1, `test` 1.24 to 1.29. The `test` constraint
+  is capped by what `flutter_test` allows at the oldest Flutter this package
+  supports, which is the version CI builds against.
+
+- `lints` 6 enables `use_null_aware_elements`, so twenty map literals that read
+  `if (x != null) 'key': x` are now `'key': ?x`, and one unnecessary library
+  name is gone. Behaviour is identical; one of the twenty, a static field, is
+  now read once where it used to be read twice.
+
 ## 0.6.2
 
 ### Added
