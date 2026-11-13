@@ -8,10 +8,12 @@
 /// await Tolinku.instance.track('custom.signup');
 /// ```
 ///
-/// For lifecycle handling, call [Tolinku.flush] when the app goes to background.
-/// Implement [WidgetsBindingObserver] and call `Tolinku.instance.flush()` in
-/// [didChangeAppLifecycleState] when the state is [AppLifecycleState.paused].
-library tolinku;
+/// Queued analytics and ecommerce events are flushed automatically when the app
+/// leaves the foreground, so there is no lifecycle observer to install. Earlier
+/// versions of this package asked you to implement one; if you did, it still
+/// works and costs nothing, because the queue is empty by the time your
+/// observer runs. [Tolinku.flush] remains available for sending a batch sooner.
+library;
 
 export 'src/tolinku_client.dart';
 export 'src/analytics.dart' show Analytics;

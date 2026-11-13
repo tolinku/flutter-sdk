@@ -100,7 +100,7 @@ class Ecommerce {
     final resolvedCartId = cartId ?? await _getCartId();
     await _enqueue({
       'event_type': 'remove_from_cart',
-      if (resolvedCartId != null) 'cart_id': resolvedCartId,
+      'cart_id': ?resolvedCartId,
       'items': items.map((i) => i.toJson()).toList(),
     });
   }
@@ -111,21 +111,21 @@ class Ecommerce {
 
   Future<void> viewCart() async {
     final cartId = await _getCartId();
-    await _enqueue({'event_type': 'view_cart', if (cartId != null) 'cart_id': cartId});
+    await _enqueue({'event_type': 'view_cart', 'cart_id': ?cartId});
   }
 
   Future<void> addPaymentInfo({String? cartId}) async {
     final resolvedCartId = cartId ?? await _getCartId();
-    await _enqueue({'event_type': 'add_payment_info', if (resolvedCartId != null) 'cart_id': resolvedCartId});
+    await _enqueue({'event_type': 'add_payment_info', 'cart_id': ?resolvedCartId});
   }
 
   Future<void> beginCheckout({double? revenue, String? currency, String? cartId, List<TolinkuItem>? items}) async {
     final resolvedCartId = cartId ?? await _getCartId();
     await _enqueue({
       'event_type': 'begin_checkout',
-      if (revenue != null) 'revenue': revenue,
-      if (currency != null) 'currency': currency,
-      if (resolvedCartId != null) 'cart_id': resolvedCartId,
+      'revenue': ?revenue,
+      'currency': ?currency,
+      'cart_id': ?resolvedCartId,
       if (items != null) 'items': items.map((i) => i.toJson()).toList(),
     });
   }
@@ -147,11 +147,11 @@ class Ecommerce {
       'transaction_id': transactionId,
       'revenue': revenue,
       'currency': currency,
-      if (resolvedCartId != null) 'cart_id': resolvedCartId,
-      if (couponCode != null) 'coupon_code': couponCode,
-      if (discount != null) 'discount': discount,
-      if (shipping != null) 'shipping': shipping,
-      if (tax != null) 'tax': tax,
+      'cart_id': ?resolvedCartId,
+      'coupon_code': ?couponCode,
+      'discount': ?discount,
+      'shipping': ?shipping,
+      'tax': ?tax,
       if (items != null) 'items': items.map((i) => i.toJson()).toList(),
     });
     await _clearCartId();
@@ -167,7 +167,7 @@ class Ecommerce {
       'event_type': 'refund',
       'transaction_id': transactionId,
       'revenue': revenue,
-      if (currency != null) 'currency': currency,
+      'currency': ?currency,
       if (items != null) 'items': items.map((i) => i.toJson()).toList(),
     });
   }

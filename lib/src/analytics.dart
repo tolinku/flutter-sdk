@@ -98,7 +98,7 @@ class Analytics {
 
     final event = <String, dynamic>{
       'event_type': normalizedName,
-      if (properties != null) 'properties': properties,
+      'properties': ?properties,
     };
 
     _queue.add(event);
@@ -147,8 +147,8 @@ class Analytics {
           // The User-Agent cannot say which platform this is: this package
           // identifies itself the same way on both. Without it an app open has
           // no platform and lands in a blank bucket on every breakdown.
-          if (_platform != null) 'platform': _platform,
-          if (userId != null) 'user_id': userId,
+          'platform': ?_platform,
+          'user_id': ?userId,
         },
         authenticated: false,
       );

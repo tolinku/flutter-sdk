@@ -48,7 +48,7 @@ class Deferred {
         // to no Appspace, so without it a miss belongs to nobody.
         queryParams: {
           'token': token,
-          if (appspaceId != null) 'appspace_id': appspaceId,
+          'appspace_id': ?appspaceId,
         },
         authenticated: false,
       );

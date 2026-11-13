@@ -16,23 +16,41 @@
 //   rm android/settings.gradle
 
 buildscript {
-    ext.kotlin_version = "1.9.22"
+    // The Kotlin that Android Gradle plugin 9.5 depends on, and close to what
+    // the current Flutter host template uses (2.2.20). Only the standalone
+    // compile check below uses it: in a host app the app's own Kotlin Gradle
+    // plugin compiles this module, so this is not a floor on anyone. Kept at
+    // the same version as the native Android SDK so there is one Kotlin across
+    // the Android artifacts rather than two by accident.
+    ext.kotlin_version = "2.2.10"
     repositories {
         google()
         mavenCentral()
     }
     dependencies {
-        classpath("com.android.tools.build:gradle:8.1.4")
+        classpath("com.android.tools.build:gradle:9.5.1")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version")
     }
 }
 
 apply plugin: "com.android.library"
-apply plugin: "kotlin-android"
+
+// AGP 9 compiles Kotlin itself and refuses the kotlin-android plugin, failing
+// with "Cannot add extension with name 'kotlin'". AGP 8 and below still need
+// it. The host app chooses the AGP version for a Flutter plugin, not us, so
+// both have to keep working: testing for the extension AGP 9 registers is the
+// direct test of which situation we are in, and it has to come after the
+// library plugin is applied so that extension exists to be found.
+if (project.extensions.findByName("kotlin") == null) {
+    apply plugin: "kotlin-android"
+}
 
 android {
     namespace "com.tolinku.tolinku"
-    compileSdk 34
+    // Google Play has required targetSdk 36 since 31 August 2026. A plugin
+    // compiled against an older SDK than the app consuming it is also what AGP
+    // 9 now rejects by default.
+    compileSdk 36
 
     defaultConfig {
         // The Install Referrer library requires 21.
@@ -40,16 +58,34 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
     }
 
-    kotlinOptions {
-        jvmTarget = "1.8"
-    }
-
-    lintOptions {
+    // lint, not lintOptions: renamed in AGP 7.0, removed in AGP 9.
+    lint {
         abortOnError false
+    }
+}
+
+// The Kotlin JVM target, spelled out, and spelled out in the one form that
+// works on both plugin paths.
+//
+// This has to agree with compileOptions.targetCompatibility above or the build
+// fails with "Inconsistent JVM-target compatibility". It cannot be left to
+// default: on AGP 9's built-in Kotlin it does follow targetCompatibility, but
+// on AGP 8 with the kotlin-android plugin, which is what the current Flutter
+// host template uses, it follows the JDK running Gradle instead. On a JDK 17
+// machine that is 17 against Java's 11, and every Android build of an app using
+// this plugin fails.
+//
+// `kotlin { compilerOptions { } }` rather than the older `kotlinOptions`:
+// kotlinOptions was removed in AGP 9, and compilerOptions is understood by both
+// the built-in Kotlin of AGP 9 and the Kotlin Gradle plugin 2.x that Flutter
+// 3.41 and later ship with.
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11
     }
 }
 
