@@ -164,6 +164,101 @@ void main() {
     expect('<'.allMatches(xml).length, greaterThan(4));
   });
 
+  test('the privacy manifest declares what the Dart side sends', () {
+    // The declaration describes the package, not this directory. The Dart side
+    // has no bundle of its own, so if these entries are dropped there is
+    // nowhere else they can appear, and the developer embedding us has to read
+    // our source to fill in their own privacy label.
+    final xml =
+        File('ios/tolinku/Sources/tolinku/PrivacyInfo.xcprivacy').readAsStringSync();
+
+    const expected = {
+      // deferred.claimBySignals, from both Dart and TolinkuPlugin
+      'NSPrivacyCollectedDataTypeOtherDataTypes': 'deferred signal matching',
+      // trackLinkOpen, track, and the ecommerce interaction events
+      'NSPrivacyCollectedDataTypeProductInteraction': 'analytics events',
+      // ecommerce.search
+      'NSPrivacyCollectedDataTypeSearchHistory': 'ecommerce.search',
+      // ecommerce.purchase, refund, beginCheckout
+      'NSPrivacyCollectedDataTypePurchaseHistory': 'ecommerce revenue events',
+      // setUserId and the referral calls
+      'NSPrivacyCollectedDataTypeUserID': 'setUserId and referrals',
+      // the optional userName on referrals.create and referrals.complete
+      'NSPrivacyCollectedDataTypeName': 'referral display names',
+    };
+
+    for (final entry in expected.entries) {
+      expect(
+        xml,
+        contains(entry.key),
+        reason: '${entry.key} is not declared, but ${entry.value} still sends it',
+      );
+    }
+  });
+
+  test('every declared data type carries its purposes and both flags', () {
+    // Xcode's privacy report skips an incomplete entry in silence, so a
+    // half-filled declaration reads as no declaration while looking present.
+    final xml =
+        File('ios/tolinku/Sources/tolinku/PrivacyInfo.xcprivacy').readAsStringSync();
+
+    final typeCount =
+        'NSPrivacyCollectedDataType<'.allMatches(xml).length;
+    expect(typeCount, greaterThan(0), reason: 'no collected data types declared');
+
+    expect('NSPrivacyCollectedDataTypeLinked'.allMatches(xml).length, typeCount,
+        reason: 'a data type does not say whether it is linked to identity');
+    expect('NSPrivacyCollectedDataTypeTracking'.allMatches(xml).length, typeCount,
+        reason: 'a data type does not say whether it is used for tracking');
+    expect('NSPrivacyCollectedDataTypePurposes'.allMatches(xml).length, typeCount,
+        reason: 'a data type declares no purpose');
+
+    // NSPrivacyTracking is false, so no individual type may claim otherwise.
+    expect(
+      RegExp(r'NSPrivacyCollectedDataTypeTracking</key>\s*<true/>').hasMatch(xml),
+      isFalse,
+      reason: 'a data type is marked as used for tracking while '
+          'NSPrivacyTracking is false',
+    );
+  });
+
+  test('an empty accessed API array means nothing here calls one', () {
+    // UserDefaults reaches this package through shared_preferences, which ships
+    // its own manifest declaring it with reason 1C8F.1. Repeating it here would
+    // claim a call this package does not make. But if anything under ios/ ever
+    // reads UserDefaults directly, the array has to stop being empty, and this
+    // is what notices.
+    final xml =
+        File('ios/tolinku/Sources/tolinku/PrivacyInfo.xcprivacy').readAsStringSync();
+    final declaresNone =
+        RegExp(r'NSPrivacyAccessedAPITypes</key>\s*<array/>').hasMatch(xml);
+    if (!declaresNone) return;
+
+    final swift = Directory('ios')
+        .listSync(recursive: true)
+        .whereType<File>()
+        .where((f) => f.path.endsWith('.swift') && !f.path.endsWith('/Package.swift'))
+        .map((f) => f.readAsStringSync())
+        .join();
+
+    for (final needle in const [
+      'UserDefaults',
+      'systemUptime',
+      'mach_absolute_time',
+      'attributesOfItem',
+      'volumeAvailableCapacity',
+      'activeInputModes',
+    ]) {
+      expect(
+        swift.contains(needle),
+        isFalse,
+        reason: 'ios/ calls $needle, which is a required reason API, but '
+            'NSPrivacyAccessedAPITypes is empty. Declare it with a reason code '
+            'or App Store Connect answers the next upload with ITMS-91053.',
+      );
+    }
+  });
+
   test('the package declares the Flutter framework it builds against', () {
     // Without this the target compiles against no Flutter headers, and
     // `import Flutter` in the plugin fails on the app developer's machine

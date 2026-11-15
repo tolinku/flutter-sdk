@@ -1,5 +1,55 @@
 # Changelog
 
+## 0.7.1
+
+### Changed
+
+- The privacy manifest now declares what the package sends, not only what the
+  iOS plugin reads.
+
+  `ios/tolinku/Sources/tolinku/PrivacyInfo.xcprivacy` has shipped since 0.6.2,
+  but with an empty `NSPrivacyCollectedDataTypes` array. That was accurate
+  about the Swift in that directory, which reads a timezone and an OS version
+  and nothing else, and misleading about the package, because the Dart side is
+  where the analytics, referral and ecommerce calls actually happen. A Flutter
+  package has no bundle of its own for the Dart half, so a plugin manifest is
+  the only place any of it can be declared, and declaring none of it left the
+  developer embedding us to read our source to fill in their own App Store
+  privacy label.
+
+  It now declares six data types, each mapped in README.md to the call that
+  causes it: device signals for deferred matching, product interaction, search
+  history, purchase history, user id and name. The list covers the package's
+  whole surface, which is more than most integrations use, so the README table
+  is there to narrow it rather than to be copied wholesale. An app that only
+  resolves links triggers none of the six.
+
+  `NSPrivacyAccessedAPITypes` stays empty, and that is now written down as a
+  decision rather than left looking unfinished. Nothing in this package calls a
+  required reason API directly: `UserDefaults` is reached through
+  `shared_preferences`, for the cart id, the claim once marker and message
+  frequency capping, and that package ships its own manifest declaring
+  `NSPrivacyAccessedAPICategoryUserDefaults` with reason `1C8F.1`. Repeating it
+  here would claim a call this package does not make.
+
+  Nothing about the data the package sends changed in this release. The
+  declaration caught up with it.
+
+### Added
+
+- Three tests in `test/ios_package_test.dart`.
+
+  One checks that every data type the Dart side sends is still declared, one
+  that each declared type carries its purposes and both flags, since Xcode's
+  privacy report skips an incomplete entry in silence, and one that fails if
+  anything under `ios/` starts calling a required reason API while
+  `NSPrivacyAccessedAPITypes` is empty.
+
+  The last of those is the guard that matters later. The empty array is correct
+  only for as long as the Swift stays free of those calls, and nothing about
+  adding a `UserDefaults` read to a plugin feels like it should involve a
+  privacy manifest.
+
 ## 0.7.0
 
 ### Fixed

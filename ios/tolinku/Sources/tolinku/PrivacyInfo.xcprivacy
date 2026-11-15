@@ -1,27 +1,168 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-  What this plugin does on the device, declared for the app that embeds it.
+  What the tolinku package does on the device, declared for the app that embeds
+  it.
 
-  Apple does not require a manifest for the APIs this plugin calls: it reads
-  TimeZone.current.identifier and UIDevice.current.systemVersion, and neither is
-  on the required reason API list. It is here because Tolinku is an attribution
-  SDK, and the developer shipping it has to answer for our data flows in their
-  own App Store privacy label. An absent manifest makes them guess.
+  This file is the iOS plugin's, because a plugin bundle is the only place a
+  Flutter package can put one. The Dart side has no bundle of its own, and it is
+  where almost everything described below actually happens, so this declares the
+  package rather than only the Swift in this directory. Declaring just the two
+  values TolinkuPlugin reads would have been accurate about this file and
+  misleading about the package.
 
-  This declares the iOS plugin only. The timezone and OS version it reports are
-  sent to the Tolinku API to match an install back to the click that caused it,
-  and they are compared and discarded rather than kept against a person.
+  NSPrivacyAccessedAPITypes is empty, and that is deliberate rather than
+  unfinished. Nothing in this package calls a required reason API directly. The
+  one that gets used is UserDefaults, through shared_preferences, for the cart
+  id in ecommerce.dart, the claim once marker in deferred.dart and message
+  frequency capping in message_presenter.dart. That dependency ships its own
+  manifest declaring NSPrivacyAccessedAPICategoryUserDefaults with reason
+  1C8F.1, which is the reason code for a framework accessing user defaults on
+  behalf of the app embedding it, so Apple already has the declaration from the
+  package that makes the call. Repeating it here would claim a call this package
+  does not make. If anything in ios/ ever reads UserDefaults directly, this
+  array stops being empty.
+
+  NSPrivacyCollectedDataTypes is not required of an SDK outside Apple's commonly
+  used list, and Tolinku is not on it. It is here because the developer shipping
+  an attribution SDK has to answer for our data flows in their own App Store
+  privacy label, and an absent declaration makes them guess. It covers the
+  package's whole surface, which is more than most integrations use, so
+  README.md maps each entry to the call that causes it.
+
+  NSPrivacyTracking is false and NSPrivacyTrackingDomains is empty, and both are
+  statements rather than defaults. The package never reads the advertising
+  identifier, never calls App Tracking Transparency, and never joins a person's
+  activity to data from another company's apps or sites. Deferred matching
+  compares coarse device signals inside Tolinku and discards them.
+
+  The native side of this plugin exists only to report the two signals Dart
+  cannot express in the form matching compares against: TimeZone.current
+  .identifier, because Dart returns an abbreviation such as KST, and
+  UIDevice.current.systemVersion, because Platform.operatingSystemVersion
+  returns prose. Both appear under Other Data Types below.
 -->
 <plist version="1.0">
 <dict>
   <key>NSPrivacyTracking</key>
   <false/>
+
   <key>NSPrivacyTrackingDomains</key>
   <array/>
-  <key>NSPrivacyCollectedDataTypes</key>
-  <array/>
+
+  <!-- See the note above. Empty because nothing here calls one directly. -->
   <key>NSPrivacyAccessedAPITypes</key>
   <array/>
+
+  <key>NSPrivacyCollectedDataTypes</key>
+  <array>
+    <!--
+      Device signals read for deferred link matching: IANA timezone and OS
+      version from TolinkuPlugin, language, screen size and pixel ratio from
+      Dart. Apple's list has no category for coarse device characteristics, so
+      they sit under Other Data Types. Sent only when claimDeferredLink or
+      claimBySignals is called, held against a click rather than a person, and
+      not linked to an identity.
+    -->
+    <dict>
+      <key>NSPrivacyCollectedDataType</key>
+      <string>NSPrivacyCollectedDataTypeOtherDataTypes</string>
+      <key>NSPrivacyCollectedDataTypeLinked</key>
+      <false/>
+      <key>NSPrivacyCollectedDataTypeTracking</key>
+      <false/>
+      <key>NSPrivacyCollectedDataTypePurposes</key>
+      <array>
+        <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+        <string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+      </array>
+    </dict>
+
+    <!--
+      Link opens, custom events and the ecommerce interaction events
+      (viewItem, addToCart, viewCart, addToWishlist, share, rate).
+      Linked, because setUserId attaches user_id to every event once it is set.
+    -->
+    <dict>
+      <key>NSPrivacyCollectedDataType</key>
+      <string>NSPrivacyCollectedDataTypeProductInteraction</string>
+      <key>NSPrivacyCollectedDataTypeLinked</key>
+      <true/>
+      <key>NSPrivacyCollectedDataTypeTracking</key>
+      <false/>
+      <key>NSPrivacyCollectedDataTypePurposes</key>
+      <array>
+        <string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+        <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+      </array>
+    </dict>
+
+    <!-- ecommerce.search sends the searchTerm you pass it. -->
+    <dict>
+      <key>NSPrivacyCollectedDataType</key>
+      <string>NSPrivacyCollectedDataTypeSearchHistory</string>
+      <key>NSPrivacyCollectedDataTypeLinked</key>
+      <true/>
+      <key>NSPrivacyCollectedDataTypeTracking</key>
+      <false/>
+      <key>NSPrivacyCollectedDataTypePurposes</key>
+      <array>
+        <string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+      </array>
+    </dict>
+
+    <!--
+      ecommerce.purchase, refund and beginCheckout carry a transaction id,
+      revenue, currency and line items.
+    -->
+    <dict>
+      <key>NSPrivacyCollectedDataType</key>
+      <string>NSPrivacyCollectedDataTypePurchaseHistory</string>
+      <key>NSPrivacyCollectedDataTypeLinked</key>
+      <true/>
+      <key>NSPrivacyCollectedDataTypeTracking</key>
+      <false/>
+      <key>NSPrivacyCollectedDataTypePurposes</key>
+      <array>
+        <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+        <string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+      </array>
+    </dict>
+
+    <!--
+      The identifier you pass to setUserId, and the referring and referred user
+      ids in the referral calls. Your own identifier, never one the SDK derives.
+    -->
+    <dict>
+      <key>NSPrivacyCollectedDataType</key>
+      <string>NSPrivacyCollectedDataTypeUserID</string>
+      <key>NSPrivacyCollectedDataTypeLinked</key>
+      <true/>
+      <key>NSPrivacyCollectedDataTypeTracking</key>
+      <false/>
+      <key>NSPrivacyCollectedDataTypePurposes</key>
+      <array>
+        <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+        <string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+      </array>
+    </dict>
+
+    <!--
+      referrals.create and referrals.complete take an optional display name for
+      a referral leaderboard. Omit it and nothing in this category is sent.
+    -->
+    <dict>
+      <key>NSPrivacyCollectedDataType</key>
+      <string>NSPrivacyCollectedDataTypeName</string>
+      <key>NSPrivacyCollectedDataTypeLinked</key>
+      <true/>
+      <key>NSPrivacyCollectedDataTypeTracking</key>
+      <false/>
+      <key>NSPrivacyCollectedDataTypePurposes</key>
+      <array>
+        <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+      </array>
+    </dict>
+  </array>
 </dict>
 </plist>
