@@ -211,6 +211,40 @@ jobs:
             find "$app" -maxdepth 2
             exit 1
           fi
+      # The privacy manifest is declared in two places, the podspec's
+      # resource_bundles and Package.swift's resources, and a declaration that
+      # is wrong fails silently: the build succeeds and the file simply is not
+      # there. Both tests in test/ios_package_test.dart read the declarations,
+      # which is a proxy. This reads the built app.
+      - name: Check the privacy manifest is in the built app
+        working-directory: example
+        run: |
+          app=$(find build/ios -maxdepth 3 -name '*.app' -type d | head -1)
+          if [ -z "$app" ]; then echo "no .app was produced"; exit 1; fi
+          echo "checking $app"
+          # CocoaPods puts it in tolinku_privacy.bundle, from s.resource_bundles.
+          # Swift Package Manager puts it in tolinku_tolinku.bundle, from
+          # .process(). Requiring "tolinku" in the path is what distinguishes
+          # ours from the Runner app's own manifest.
+          found=$(find "$app" -name 'PrivacyInfo.xcprivacy' | grep -i tolinku || true)
+          if [ -z "$found" ]; then
+            echo "no Tolinku privacy manifest in the built app"
+            echo "manifests present:"
+            find "$app" -name 'PrivacyInfo.xcprivacy' || echo "  none at all"
+            echo "bundles present:"
+            find "$app" -name '*.bundle' -maxdepth 4 || echo "  none"
+            exit 1
+          fi
+          echo "$found"
+          # Present is not the same as correct. plutil parses it and the key has
+          # to be the one Apple reads, so a truncated or renamed copy fails here
+          # rather than at App Store review.
+          for m in $found; do
+            plutil -lint "$m"
+            plutil -extract NSPrivacyCollectedDataTypes json -o - "$m" > /dev/null \
+              || { echo "$m has no NSPrivacyCollectedDataTypes"; exit 1; }
+          done
+          echo "manifest is in the app, parses, and declares collected data types"
 
   # The oldest Flutter this package claims to support, building the iOS side the
   # way that version's users would.
