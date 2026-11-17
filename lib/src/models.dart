@@ -515,6 +515,7 @@ class DeferredLink {
   const DeferredLink({
     required this.deepLinkPath,
     required this.appspaceId,
+    this.url,
     this.referrerId,
     this.referralCode,
   });
@@ -524,6 +525,7 @@ class DeferredLink {
     return DeferredLink(
       deepLinkPath: json['deep_link_path'] as String,
       appspaceId: json['appspace_id'] as String,
+      url: json['url'] as String?,
       referrerId: json['referrer_id'] as String?,
       referralCode: json['referral_code'] as String?,
     );
@@ -534,6 +536,14 @@ class DeferredLink {
 
   /// The appspace ID this link belongs to.
   final String appspaceId;
+
+  /// The absolute URL for this link, for reporting the open that follows.
+  ///
+  /// Reporting an open needs the whole URL, not the path: the host is how the
+  /// server finds the Appspace and the only thing proving the link belongs to
+  /// it, and the device has no way to know it. Absent from servers older than
+  /// this field, so treat it as optional.
+  final String? url;
 
   /// The referrer's user ID, if this is a referral link.
   final String? referrerId;
@@ -546,6 +556,7 @@ class DeferredLink {
     return {
       'deep_link_path': deepLinkPath,
       'appspace_id': appspaceId,
+      if (url != null) 'url': url,
       if (referrerId != null) 'referrer_id': referrerId,
       if (referralCode != null) 'referral_code': referralCode,
     };
@@ -557,6 +568,7 @@ class DeferredLink {
     return other is DeferredLink &&
         other.deepLinkPath == deepLinkPath &&
         other.appspaceId == appspaceId &&
+        other.url == url &&
         other.referrerId == referrerId &&
         other.referralCode == referralCode;
   }
@@ -566,6 +578,7 @@ class DeferredLink {
     return Object.hash(
       deepLinkPath,
       appspaceId,
+      url,
       referrerId,
       referralCode,
     );
