@@ -119,7 +119,7 @@ class Analytics {
   /// Reports that a link opened the app without the browser being involved.
   ///
   /// See `Tolinku.trackLinkOpen`, which is how apps normally reach this.
-  Future<void> trackLinkOpen(String url, {String? userId}) async {
+  Future<void> trackLinkOpen(String url, {String? userId, bool deferred = false}) async {
     if (_appOpensDisabled) return;
 
     final trimmed = url.trim();
@@ -148,6 +148,12 @@ class Analytics {
           // identifies itself the same way on both. Without it an app open has
           // no platform and lands in a blank bucket on every breakdown.
           'platform': ?_platform,
+          // Whether this open followed a deferred install. Only the app knows.
+          // An ordinary open is somebody who already had the app and can never
+          // convert to an install; an open after a deferred claim is the last
+          // stage of the install funnel. The server records them as different
+          // events and must not pool them.
+          if (deferred) 'deferred': true,
           'user_id': ?userId,
         },
         authenticated: false,

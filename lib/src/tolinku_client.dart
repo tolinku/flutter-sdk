@@ -331,8 +331,8 @@ class Tolinku {
   /// served, so passing one does nothing rather than counting it twice.
   ///
   /// Never throws and never blocks.
-  Future<void> trackLinkOpen(String url) =>
-      _analytics.trackLinkOpen(url, userId: _userId);
+  Future<void> trackLinkOpen(String url, {bool deferred = false}) =>
+      _analytics.trackLinkOpen(url, userId: _userId, deferred: deferred);
 
   /// Flushes any queued analytics events to the server.
   ///
