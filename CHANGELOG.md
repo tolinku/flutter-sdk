@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.8.0
+
+### Added
+
+- `trackLinkOpen` now takes an optional flag saying whether the open followed a
+  deferred install.
+
+  Until now every reported open looked the same to the server, so it could only
+  record one thing: an open by somebody who already had the app, where the
+  operating system handed the link straight over and no browser was involved.
+  That population can never convert to an install, which is why it is kept out
+  of the install funnel.
+
+  The other end of the same journey had no way to be reported at all. An app
+  that has just claimed a deferred link and then taken the person to what the
+  link pointed at is the final stage of the install funnel, the one that shows
+  deep linking worked end to end rather than only that an install was
+  attributed. The dashboard has always counted that stage and nothing could
+  ever produce it.
+
+  Only your app knows which of the two it is, so your app says. Call it with
+  the flag set after you have routed somebody using a link you claimed on first
+  run, and leave it alone everywhere else.
+
+- Nothing changes if you do nothing. The flag defaults to off, the request body
+  is unchanged when it is off, and the server still records an ordinary app
+  open for anything that does not say otherwise.
+
 ## 0.7.1
 
 ### Changed
