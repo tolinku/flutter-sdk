@@ -54,6 +54,15 @@ class Analytics {
   /// delivery of one tap is not.
   String? _lastOpenUrl;
   DateTime? _lastOpenAt;
+
+  /// Part of the key, not carried alongside it. An ordinary open and a deferred
+  /// one are different events on the server and only the app can tell them
+  /// apart, so a deferred report just after an ordinary one for the same link is
+  /// new information rather than a repeat. Keyed on the URL alone, somebody who
+  /// tapped a link, installed, then tapped it again would have the deferred
+  /// report swallowed, losing the last stage of the install funnel in the one
+  /// case it exists to show.
+  bool _lastOpenDeferred = false;
   static const Duration _openDedupeWindow = Duration(seconds: 5);
 
   final List<Map<String, dynamic>> _queue = [];
@@ -132,12 +141,14 @@ class Analytics {
 
     final now = DateTime.now();
     if (_lastOpenUrl == trimmed &&
+        _lastOpenDeferred == deferred &&
         _lastOpenAt != null &&
         now.difference(_lastOpenAt!) < _openDedupeWindow) {
       return;
     }
     _lastOpenUrl = trimmed;
     _lastOpenAt = now;
+    _lastOpenDeferred = deferred;
 
     try {
       final data = await _httpClient.post(

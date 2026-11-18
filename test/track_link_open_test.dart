@@ -135,6 +135,31 @@ void main() {
       expect(sentUris, hasLength(1));
     });
 
+    test('still reports a deferred open after an ordinary one for the same link',
+        () async {
+      // These are different events on the server, and only the app knows which
+      // is which. Somebody who tapped a link, installed, then tapped it again
+      // delivers the ordinary open first, and keying the dedupe on the URL
+      // alone swallowed the deferred report behind it, losing the last stage of
+      // the install funnel in the one case it exists to show.
+      final a = analytics();
+      await a.trackLinkOpen('https://links.example.com/promo');
+      await a.trackLinkOpen('https://links.example.com/promo', deferred: true);
+
+      expect(sentUris, hasLength(2));
+      expect(sentBodies.first['deferred'], isNot(true));
+      expect(sentBodies.last['deferred'], isTrue);
+    });
+
+    test('still reports one deferred open once', () async {
+      // The flag joins the key, it does not bypass it.
+      final a = analytics();
+      await a.trackLinkOpen('https://links.example.com/promo', deferred: true);
+      await a.trackLinkOpen('https://links.example.com/promo', deferred: true);
+
+      expect(sentUris, hasLength(1));
+    });
+
     test('still reports a different link straight after', () async {
       final a = analytics();
       await a.trackLinkOpen('https://links.example.com/a');
