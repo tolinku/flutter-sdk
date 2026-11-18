@@ -313,6 +313,27 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+
+      # Without this, every run resolves the Kotlin Gradle plugin from Maven
+      # Central, which answers 429 when a runner is unlucky. That failed this
+      # job on a version bump touching four files, none of them Gradle's, and
+      # the retry Flutter does internally hit the same 429.
+      #
+      # Keyed on the run id with a prefix fallback, rather than on a hash of the
+      # Gradle files, because the Android project does not exist yet: the step
+      # below generates it. A content hash would be computed over nothing, match
+      # everything, and never be refreshed. This way the newest cache is always
+      # restored and a fresh one is always saved.
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-example-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: |
+            gradle-example-${{ runner.os }}-
+
       - name: Generate the example's Android project
         working-directory: example
         run: |
