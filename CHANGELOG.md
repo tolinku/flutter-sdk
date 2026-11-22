@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8.2
+
+### Changed
+
+- `Links.resolve` unwraps links from emails (SendGrid, Amazon SES, Braze,
+  Klaviyo, Iterable, Salesforce Marketing Cloud, Customer.io). It sends the
+  whole link, tidied (http becomes https), and asks the link's own host once,
+  with a five second time limit and no retries. It asks the Tolinku API only
+  when that host isn't Tolinku, and only if an API key is set.
+
 ## 0.8.1
 
 ### Added

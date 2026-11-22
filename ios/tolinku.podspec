@@ -7,7 +7,7 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'tolinku'
-  s.version          = '0.8.1'
+  s.version          = '0.8.2'
   s.summary          = 'Tolinku SDK for deep linking, analytics, referrals, and in-app messages.'
   s.description      = <<-DESC
 Reports the timezone and OS version used to match a deferred deep link back to

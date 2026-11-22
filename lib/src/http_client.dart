@@ -7,7 +7,7 @@ import 'package:http/http.dart' as http;
 import 'exceptions.dart';
 
 /// SDK version constant.
-const String tolinkuSdkVersion = '0.8.1';
+const String tolinkuSdkVersion = '0.8.2';
 
 /// Maximum number of retry attempts for failed requests.
 const int _maxRetries = 3;
@@ -17,6 +17,12 @@ const int _baseDelayMs = 500;
 
 /// Maximum random jitter added to backoff (in milliseconds).
 const int _maxJitterMs = 250;
+
+/// How long [TolinkuHttpClient.postOnce] waits for an answer.
+///
+/// package:http has no timeout of its own, so without this a host that never
+/// answers would hold the caller for as long as the platform's socket allows.
+const Duration tolinkuOneShotTimeout = Duration(seconds: 5);
 
 /// Whether debug logging is enabled globally.
 bool _debugMode = false;
@@ -145,6 +151,43 @@ class TolinkuHttpClient {
       );
       return _handleResponse(response);
     });
+  }
+
+  /// Sends one POST, with no retries and a [tolinkuOneShotTimeout] limit, and
+  /// hands back the raw response for the caller to read.
+  ///
+  /// For a question that must be asked at most once: asking again could count
+  /// the same click twice. The request goes to [origin] when given (a host
+  /// other than the configured one), or to the configured base URL otherwise.
+  /// Throws on a network error or when the time limit passes; any status,
+  /// including an error status, comes back as a response.
+  Future<http.Response> postOnce(
+    String path, {
+    String? origin,
+    Map<String, dynamic>? body,
+    bool authenticated = false,
+  }) async {
+    _checkDisposed();
+    final Uri uri;
+    if (origin == null) {
+      uri = _buildUri(path);
+    } else {
+      final base = origin.endsWith('/')
+          ? origin.substring(0, origin.length - 1)
+          : origin;
+      uri = Uri.parse('$base$path');
+    }
+    _debugLog('POST $uri (single attempt)');
+    return _client
+        .post(
+          uri,
+          headers: {
+            ..._headers(authenticated),
+            'Content-Type': 'application/json',
+          },
+          body: body != null ? jsonEncode(body) : null,
+        )
+        .timeout(tolinkuOneShotTimeout);
   }
 
   /// Sends a POST request that returns the raw response status and body,

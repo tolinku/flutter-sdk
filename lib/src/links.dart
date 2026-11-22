@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'http_client.dart';
 
 /// The route that answers a link.
@@ -80,13 +82,31 @@ class Links {
   /// knows which Appspace is being asked about, which also means a link on a
   /// domain that is not yours simply answers nothing.
   ///
+  /// The link is tidied once first (whitespace and fragment dropped, scheme and
+  /// host lowercased, http upgraded to https, a default port dropped, path and
+  /// query kept exactly as written) and that form is what both questions use.
+  ///
+  /// The link's own host is asked once, with a five second limit and no
+  /// retries. If it answers as Tolinku (a JSON body with an `error`), that is
+  /// the answer, even when it is "no": asking again would count an email click
+  /// twice. If it does not answer as Tolinku, which is what happens to a link
+  /// in an email once the email platform has wrapped it for click tracking, the
+  /// question goes once more to the Tolinku API, with the API key, so it can
+  /// unwrap the link. That second question is skipped when the link is already
+  /// on the API's host, or when there is no key to ask with.
+  ///
   /// Never throws. A link that cannot be resolved, for a bad network or any
   /// other reason, is one the app should fall back to its own handling for, and
   /// an exception in the middle of a cold start is no way to say so.
   Future<ResolvedLink?> resolve(String url) async {
+    // The fragment never reaches a server, so it plays no part in the answer.
+    final trimmed = url.trim();
+    final hash = trimmed.indexOf('#');
+    final written = hash < 0 ? trimmed : trimmed.substring(0, hash);
+
     final Uri uri;
     try {
-      uri = Uri.parse(url.trim());
+      uri = Uri.parse(written);
     } on FormatException {
       return null;
     }
@@ -97,9 +117,14 @@ class Links {
     if (scheme != 'https' && scheme != 'http') return null;
     if (uri.host.isEmpty) return null;
 
-    final origin = uri.hasPort
-        ? '$scheme://${uri.host}:${uri.port}'
-        : '$scheme://${uri.host}';
+    // Always https: every Tolinku and click domain serves it, and iOS ATS and
+    // Android's cleartext rules block plain http anyway. A default port says
+    // nothing once the scheme is settled; any other port is kept.
+    final host = uri.host.toLowerCase();
+    final hostPart = host.contains(':') ? '[$host]' : host;
+    final port =
+        uri.hasPort && uri.port != 80 && uri.port != 443 ? ':${uri.port}' : '';
+    final origin = 'https://$hostPart$port';
 
     // The path as written, percent-encoding intact. A token may contain an
     // encoded slash, and decoding first turns "/promo/a%2Fb" into a path three
@@ -107,38 +132,105 @@ class Links {
     // different route or to nothing.
     final path = uri.path.isEmpty ? '/' : uri.path;
 
-    try {
-      final response = await _client.postToOrigin(
-        origin,
-        '/v1/api/path',
-        body: {'path': path},
-      );
-      final route = response['route'];
-      if (route is! Map<String, dynamic>) return null;
+    // The whole link goes along too, query and all, taken from the string as
+    // written rather than from the parsed Uri, which would tidy its encoding. A
+    // link in an email arrives wrapped in the email platform's click tracking
+    // URL, and for some of them (SendGrid, for one) everything that says where
+    // the link really goes is in the query. Older servers ignore the field.
+    final authorityEnd =
+        written.indexOf(RegExp(r'[/?]'), written.indexOf('://') + 3);
+    var rest = authorityEnd < 0 ? '' : written.substring(authorityEnd);
+    if (!rest.startsWith('/')) rest = '/$rest';
+    final whole = '$origin$rest';
 
-      // The answer went to a host taken from the URL this was given, so an app
-      // resolving a link from somewhere it does not control is talking to a
-      // stranger. The contract is a path: a full URL, or a protocol relative
-      // "//host" that reads as one, is a redirect waiting to happen in whatever
-      // the app does next.
-      final deepLinkPath = response['deep_link_path'];
-      if (deepLinkPath is! String ||
-          !deepLinkPath.startsWith('/') ||
-          deepLinkPath.startsWith('//')) {
-        return null;
-      }
-      return ResolvedLink(
-        route: ResolvedRoute(
-          prefix: route['prefix'] as String? ?? '',
-          name: route['name'] as String? ?? '',
-          template: route['template'] as String? ?? '',
-          linkType: route['link_type'] as String?,
-        ),
-        token: response['token'] as String? ?? '',
-        deepLinkPath: deepLinkPath,
+    try {
+      final response = await _client.postOnce(
+        '/v1/api/path',
+        origin: origin,
+        body: {'path': path, 'url': whole},
       );
+      final body = _json(response.body);
+      if (body != null) {
+        // Tolinku's own "no". The host is ours and has answered, so asking
+        // again would only count the click twice.
+        if (body['error'] is String) return null;
+        if (response.statusCode == 200) {
+          final resolved = _read(body);
+          if (resolved != null) return resolved;
+        }
+      }
+    } catch (_) {
+      // No answer from the host; the Tolinku API below may still know the link.
+    }
+
+    return _askTolinku(host, whole);
+  }
+
+  /// Asks the Tolinku API about a link its own host could not answer for.
+  ///
+  /// An email platform's click tracking domain is the usual case: the host is
+  /// the email platform's or a subdomain pointed at it, so a question asked
+  /// there never reaches Tolinku. The API can unwrap the link and resolve what
+  /// is inside. This one is authenticated, because it is the API key that says
+  /// which Appspace is asking now that the host cannot.
+  Future<ResolvedLink?> _askTolinku(String host, String whole) async {
+    // Without a key the API has no way to know which Appspace is asking.
+    if (_client.apiKey.trim().isEmpty) return null;
+
+    // If the link is on the API's own host, the first question already went
+    // there, and asking again would only get the same answer.
+    final apiHost = Uri.tryParse(_client.baseUrl)?.host.toLowerCase() ?? '';
+    if (apiHost.isEmpty || host == apiHost) return null;
+
+    try {
+      final response = await _client.postOnce(
+        '/v1/api/links/resolve',
+        body: {'url': whole},
+        authenticated: true,
+      );
+      if (response.statusCode != 200) return null;
+      final body = _json(response.body);
+      return body == null ? null : _read(body);
     } catch (_) {
       return null;
     }
+  }
+
+  /// The body as a JSON object, or null if it is not one.
+  Map<String, dynamic>? _json(String body) {
+    try {
+      final decoded = jsonDecode(body);
+      return decoded is Map<String, dynamic> ? decoded : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Reads an answer from either endpoint, or null if it is not one.
+  ResolvedLink? _read(Map<String, dynamic> response) {
+    final route = response['route'];
+    if (route is! Map<String, dynamic>) return null;
+
+    // The answer may have come from a host taken from the URL this was given,
+    // so an app resolving a link from somewhere it does not control is talking
+    // to a stranger. The contract is a path: a full URL, or a protocol relative
+    // "//host" that reads as one, is a redirect waiting to happen in whatever
+    // the app does next.
+    final deepLinkPath = response['deep_link_path'];
+    if (deepLinkPath is! String ||
+        !deepLinkPath.startsWith('/') ||
+        deepLinkPath.startsWith('//')) {
+      return null;
+    }
+    return ResolvedLink(
+      route: ResolvedRoute(
+        prefix: route['prefix'] as String? ?? '',
+        name: route['name'] as String? ?? '',
+        template: route['template'] as String? ?? '',
+        linkType: route['link_type'] as String?,
+      ),
+      token: response['token'] as String? ?? '',
+      deepLinkPath: deepLinkPath,
+    );
   }
 }
