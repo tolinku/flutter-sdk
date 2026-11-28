@@ -257,6 +257,14 @@ await Tolinku.instance.messages.show(
   onAction: handleMessageAction,
   onDismiss: () => debugPrint('Message dismissed'),
 );
+
+// Only messages for one event or milestone (plus those that name none)
+await Tolinku.instance.messages.show(
+  context,
+  trigger: 'event',
+  triggerValue: 'purchase',
+  onAction: handleMessageAction,
+);
 ```
 
 **`onAction` is where a message button leads, so a message without one has
@@ -398,9 +406,9 @@ await Tolinku.instance.dispose();
 
 | Method | Description |
 |--------|-------------|
-| `fetch(trigger:)` | Fetch messages with optional trigger filter |
+| `fetch(trigger:, triggerValue:)` | Fetch messages with optional trigger and event or milestone name |
 | `renderToken(messageId)` | Get a render token for a message |
-| `show(context, trigger:, onAction:, onDismiss:)` | Show the highest-priority message |
+| `show(context, trigger:, triggerValue:, onAction:, onDismiss:)` | Show the highest-priority message |
 
 ## Privacy
 

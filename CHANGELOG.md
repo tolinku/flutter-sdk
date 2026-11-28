@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.8.3
+
+### Added
+
+- `triggerValue` on `messages.show` and `messages.fetch`, to ask for the
+  messages of one event or milestone, such as
+  `show(context, trigger: 'event', triggerValue: 'purchase')`. It is sent as
+  `trigger_value`, and the SDK also filters by it, so a server older than that
+  parameter gives the same answer: messages for that name, plus messages of the
+  trigger that name none.
+
+### Fixed
+
+- A message with "After closing, hide for" left empty no longer stays hidden
+  forever after one close. With no number the close isn't remembered and the
+  message can show again the next time the app asks; a number hides it for that
+  many days. This is what the web SDK and the docs already did.
+- The close button answers taps across 48 by 48, the minimum Android and Apple
+  recommend (the dark disc drawn is the same size as before), and screen readers
+  announce it as a "Close" button.
+
 ## 0.8.2
 
 ### Changed

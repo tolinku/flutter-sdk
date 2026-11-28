@@ -12,13 +12,22 @@ class Messages {
 
   final TolinkuHttpClient _httpClient;
 
-  /// Fetches messages, optionally filtered by [trigger].
+  /// Fetches messages, optionally filtered by [trigger] ('manual',
+  /// 'milestone' or 'event'; with none, the server returns manual messages).
+  ///
+  /// [triggerValue] narrows them to one event or milestone name, such as
+  /// 'purchase' or 'installed': messages for that name, plus messages of the
+  /// trigger that name none. It is sent as `trigger_value` and also filtered
+  /// here, so a server older than that parameter gives the same answer.
   ///
   /// Returns a list of [TolinkuMessage] objects. The caller is responsible
   /// for rendering them in the UI, or use [show] for automatic display.
   ///
   /// Throws [ArgumentError] if [trigger] is provided but empty.
-  Future<List<TolinkuMessage>> fetch({String? trigger}) async {
+  Future<List<TolinkuMessage>> fetch({
+    String? trigger,
+    String? triggerValue,
+  }) async {
     if (trigger != null && trigger.trim().isEmpty) {
       throw ArgumentError.value(
         trigger,
@@ -31,6 +40,9 @@ class Messages {
     if (trigger != null) {
       queryParams['trigger'] = trigger;
     }
+    if (triggerValue != null && triggerValue.isNotEmpty) {
+      queryParams['trigger_value'] = triggerValue;
+    }
     final userId = Tolinku.isConfigured ? Tolinku.instance.userId : null;
     if (userId != null) {
       queryParams['user_id'] = userId;
@@ -42,6 +54,7 @@ class Messages {
     final list = data['messages'] as List<dynamic>? ?? [];
     return list
         .map((e) => TolinkuMessage.fromJson(e as Map<String, dynamic>))
+        .where((m) => messageMatchesTriggerValue(m, triggerValue))
         .toList();
   }
 
@@ -70,7 +83,7 @@ class Messages {
   /// Fetches, filters, and shows the highest-priority undismissed message.
   ///
   /// This convenience method fetches messages (optionally filtered by
-  /// [trigger]), removes any that have been dismissed within their
+  /// [trigger], and by [triggerValue], an event or milestone name), removes any that have been dismissed within their
   /// suppression window, sorts by priority (highest first), and displays
   /// the top message in a full-screen WebView dialog.
   ///
@@ -81,10 +94,11 @@ class Messages {
   Future<void> show(
     BuildContext context, {
     String? trigger,
+    String? triggerValue,
     Function(String)? onAction,
     VoidCallback? onDismiss,
   }) async {
-    final messages = await fetch(trigger: trigger);
+    final messages = await fetch(trigger: trigger, triggerValue: triggerValue);
 
     if (messages.isEmpty) return;
 
@@ -125,4 +139,16 @@ class Messages {
       onDismiss: onDismiss,
     );
   }
+}
+
+/// Whether [message] belongs to a request for [triggerValue]: always when no
+/// name was asked for; otherwise when the message names that one, or names
+/// none (a message for any event or milestone of its trigger). The rule the
+/// server applies to `trigger_value`, repeated here for servers older than it.
+@visibleForTesting
+bool messageMatchesTriggerValue(TolinkuMessage message, String? triggerValue) {
+  if (triggerValue == null || triggerValue.isEmpty) return true;
+  final own = message.triggerValue;
+  if (own == null || own.isEmpty) return true;
+  return own == triggerValue;
 }

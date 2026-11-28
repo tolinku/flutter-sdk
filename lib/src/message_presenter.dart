@@ -61,23 +61,33 @@ class TolinkuMessagePresenter {
   ///
   /// Returns true if the message was previously dismissed and the number
   /// of days since dismissal is less than [TolinkuMessage.dismissDays].
-  /// If [dismissDays] is null, a dismissed message stays dismissed forever.
+  /// If [TolinkuMessage.dismissDays] is null or 0 ("After closing, hide for"
+  /// left empty), a close isn't remembered and this returns false, the same
+  /// as the web SDK and the docs.
   static Future<bool> isMessageDismissed(TolinkuMessage message) async {
     final prefs = await SharedPreferences.getInstance();
     final key = '$_dismissPrefix${message.id}';
     final dismissedAt = prefs.getString(key);
 
+    return stillDismissed(
+      dismissedAt == null ? null : DateTime.tryParse(dismissedAt),
+      message.dismissDays,
+      DateTime.now(),
+    );
+  }
+
+  /// Whether a close at [dismissedAt] still hides a message whose "After
+  /// closing, hide for" is [dismissDays], at [now]. With no number (or 0) the
+  /// close isn't remembered; earlier versions hid the message forever.
+  @visibleForTesting
+  static bool stillDismissed(
+    DateTime? dismissedAt,
+    int? dismissDays,
+    DateTime now,
+  ) {
     if (dismissedAt == null) return false;
-
-    final dismissedDate = DateTime.tryParse(dismissedAt);
-    if (dismissedDate == null) return false;
-
-    // If dismissDays is null, the message is dismissed indefinitely.
-    if (message.dismissDays == null) return true;
-
-    final daysSinceDismiss =
-        DateTime.now().difference(dismissedDate).inDays;
-    return daysSinceDismiss < message.dismissDays!;
+    if (dismissDays == null || dismissDays <= 0) return false;
+    return now.difference(dismissedAt).inDays < dismissDays;
   }
 
   /// Records the current date as the dismissal timestamp for the given
@@ -260,23 +270,37 @@ class _MessageDialogState extends State<_MessageDialog> {
                 child: WebViewWidget(controller: _controller),
               ),
             ),
-            // Native close button in the top-right corner.
+            // Native close button in the top-right corner: a white X on a
+            // dark disc, so it shows on a message of any colour. The disc is
+            // 36 wide; the area that answers a tap is 48, the minimum Android
+            // and Apple recommend.
             Positioned(
-              top: MediaQuery.of(context).padding.top + 8,
-              right: 8,
-              child: GestureDetector(
-                onTap: _dismiss,
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: const Color.fromRGBO(0, 0, 0, 0.5),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.close,
-                    color: Colors.white,
-                    size: 20,
+              top: MediaQuery.of(context).padding.top + 2,
+              right: 2,
+              child: Semantics(
+                button: true,
+                label: 'Close',
+                child: GestureDetector(
+                  onTap: _dismiss,
+                  behavior: HitTestBehavior.opaque,
+                  child: SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: Center(
+                      child: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: const BoxDecoration(
+                          color: Color.fromRGBO(0, 0, 0, 0.45),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.close,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
