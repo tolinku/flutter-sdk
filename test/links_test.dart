@@ -40,6 +40,7 @@ void main() {
     String body = answer,
     int? fallbackStatus,
     String? fallbackBody,
+    bool tolinkuHeader = false,
     String apiKey = 'tolk_pub_test',
     String baseUrl = 'https://api.tolinku.com',
     Future<http.Response> Function()? onHost,
@@ -62,7 +63,10 @@ void main() {
         return http.Response(
           isFallback ? (fallbackBody ?? body) : body,
           isFallback ? (fallbackStatus ?? status) : status,
-          headers: {'content-type': 'application/json'},
+          headers: {
+            'content-type': 'application/json',
+            if (tolinkuHeader && !isFallback) 'x-tolinku': '1',
+          },
         );
       }),
     );
@@ -336,8 +340,9 @@ void main() {
     });
   });
 
-  // The host is Tolinku's and has said no. Asking the API as well would count
-  // the email click twice, so that answer stands.
+  // The host is Tolinku's and has said no. The server unwraps an email link
+  // once, so asking the API as well could count the click twice: that answer
+  // stands. Tolinku marks its answers with X-Tolinku: 1.
   group("Tolinku's own answer stops there", () {
     for (final (status, body) in const [
       (404, '{"error": "Route not found"}'),
@@ -346,19 +351,73 @@ void main() {
       (500, '{"error": "Internal error"}'),
       (200, '{"error": "Route not found"}'),
     ]) {
-      test('$status $body', () async {
-        final link = await Links(client(
-          status: status,
-          body: body,
-          fallbackStatus: 200,
-          fallbackBody: answer,
-        )).resolve('https://links.example.com/s7k2p9q/4821');
+      test('$status $body, marked', () async {
+        final link = await Links(
+          client(
+            status: status,
+            body: body,
+            tolinkuHeader: true,
+            fallbackStatus: 200,
+            fallbackBody: answer,
+          ),
+        ).resolve('https://links.example.com/s7k2p9q/4821');
 
         expect(link, isNull);
-        expect(requestedUrls.single.toString(),
-            'https://links.example.com/v1/api/path');
+        expect(
+          requestedUrls.single.toString(),
+          'https://links.example.com/v1/api/path',
+        );
+      });
+
+      // A server from before the header: its error body counts only on
+      // Tolinku's own domain.
+      test('$status $body, unmarked, on Tolinku\'s own domain', () async {
+        final link = await Links(
+          client(
+            status: status,
+            body: body,
+            fallbackStatus: 200,
+            fallbackBody: answer,
+          ),
+        ).resolve('https://links.tolinku.com/s7k2p9q/4821');
+
+        expect(link, isNull);
+        expect(
+          requestedUrls.single.toString(),
+          'https://links.tolinku.com/v1/api/path',
+        );
       });
     }
+
+    test('a marked reply without an error field stops too', () async {
+      final link = await Links(
+        client(
+          status: 404,
+          body: '{"message": "no"}',
+          tolinkuHeader: true,
+          fallbackStatus: 200,
+          fallbackBody: answer,
+        ),
+      ).resolve('https://go.brand.com/s7k2p9q/4821');
+
+      expect(link, isNull);
+      expect(requestedUrls, hasLength(1));
+    });
+
+    test('an email platform\'s JSON error does not stop the unwrap', () async {
+      final link = await Links(
+        client(
+          status: 404,
+          body: '{"error": "Link not found"}',
+          fallbackStatus: 200,
+          fallbackBody: answer,
+        ),
+      ).resolve('https://click.mailer.com/ls/click?upn=XYZ');
+
+      expect(link!.token, '4821');
+      expect(requestedUrls, hasLength(2));
+      expect(requestedUrls.last.path, '/v1/api/links/resolve');
+    });
   });
 
   // Each question is asked exactly once: a retry could count the same click

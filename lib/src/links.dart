@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:http/http.dart' as http;
+
 import 'http_client.dart';
 
 /// The route that answers a link.
@@ -87,12 +89,16 @@ class Links {
   /// query kept exactly as written) and that form is what both questions use.
   ///
   /// The link's own host is asked once, with a five second limit and no
-  /// retries. If it answers as Tolinku (a JSON body with an `error`), that is
-  /// the answer, even when it is "no": asking again would count an email click
-  /// twice. If it does not answer as Tolinku, which is what happens to a link
-  /// in an email once the email platform has wrapped it for click tracking, the
-  /// question goes once more to the Tolinku API, with the API key, so it can
-  /// unwrap the link. That second question is skipped when the link is already
+  /// retries. If it answers as Tolinku (the `X-Tolinku: 1` header, or, from a
+  /// server that does not send it yet, a JSON body with an `error` on Tolinku's
+  /// own domain), that is the answer, even when it is "no": the server unwraps
+  /// an email link once, which is how the email platform counts the click
+  /// (Tolinku records no click of its own), so asking again could count it
+  /// twice. An email platform's host can answer with a JSON `error` too, so the
+  /// body alone is not enough. If it does not answer as Tolinku, which is what
+  /// happens to a link in an email once the email platform has wrapped it for
+  /// click tracking, the question goes once more to the Tolinku API, with the
+  /// API key, so it can unwrap the link. That second question is skipped when the link is already
   /// on the API's host, or when there is no key to ask with.
   ///
   /// Never throws. A link that cannot be resolved, for a bad network or any
@@ -150,10 +156,9 @@ class Links {
         body: {'path': path, 'url': whole},
       );
       final body = _json(response.body);
+      // Tolinku's own answer, even a "no": the host is ours and has answered.
+      if (_isTolinkuReply(response, body, host)) return null;
       if (body != null) {
-        // Tolinku's own "no". The host is ours and has answered, so asking
-        // again would only count the click twice.
-        if (body['error'] is String) return null;
         if (response.statusCode == 200) {
           final resolved = _read(body);
           if (resolved != null) return resolved;
@@ -194,6 +199,21 @@ class Links {
     } catch (_) {
       return null;
     }
+  }
+
+  /// Whether a reply is Tolinku's: marked `X-Tolinku: 1`, or, from a server
+  /// that predates the header, a JSON `error` from Tolinku's own domain (the
+  /// API's host or a host under its parent domain).
+  bool _isTolinkuReply(
+      http.Response response, Map<String, dynamic>? body, String host) {
+    if (response.headers['x-tolinku'] == '1') return true;
+    if (body == null || body['error'] is! String) return false;
+    final apiHost = Uri.tryParse(_client.baseUrl)?.host.toLowerCase() ?? '';
+    if (apiHost.isEmpty) return false;
+    if (host == apiHost) return true;
+    final labels = apiHost.split('.');
+    return labels.length > 2 &&
+        host.endsWith('.${labels.sublist(labels.length - 2).join('.')}');
   }
 
   /// The body as a JSON object, or null if it is not one.

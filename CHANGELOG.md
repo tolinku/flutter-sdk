@@ -20,6 +20,13 @@
 - The close button answers taps across 48 by 48, the minimum Android and Apple
   recommend (the dark disc drawn is the same size as before), and screen readers
   announce it as a "Close" button.
+- Resolving an email link no longer stops at an email platform's own JSON
+  error. A reply counts as Tolinku's only when it carries the `X-Tolinku: 1`
+  header (or, from a server that doesn't send it yet, when it comes from
+  Tolinku's own domain), so a platform that answers with `{ "error": ... }`
+  still gets its link unwrapped by the API. The comments now say what the
+  server does: it unwraps an email link once and the email platform counts the
+  click; Tolinku records no click of its own.
 
 ## 0.8.2
 
