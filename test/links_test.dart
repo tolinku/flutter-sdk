@@ -389,6 +389,31 @@ void main() {
       });
     }
 
+    test('a marked 200 answer resolves: the real server marks every reply',
+        () async {
+      final link = await Links(client(tolinkuHeader: true))
+          .resolve('https://links.example.com/s7k2p9q/4821');
+
+      expect(link!.deepLinkPath, '/order/4821/receipt');
+      expect(link.token, '4821');
+      expect(requestedUrls, hasLength(1));
+    });
+
+    test('a marked 200 that is not an answer stops without asking again',
+        () async {
+      final link = await Links(
+        client(
+          body: '{"ok": true}',
+          tolinkuHeader: true,
+          fallbackStatus: 200,
+          fallbackBody: answer,
+        ),
+      ).resolve('https://links.example.com/s7k2p9q/4821');
+
+      expect(link, isNull);
+      expect(requestedUrls, hasLength(1));
+    });
+
     test('a marked reply without an error field stops too', () async {
       final link = await Links(
         client(

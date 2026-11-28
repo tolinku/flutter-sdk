@@ -156,14 +156,13 @@ class Links {
         body: {'path': path, 'url': whole},
       );
       final body = _json(response.body);
+      // A resolved link first: Tolinku marks every answer, the good ones too.
+      if (body != null && response.statusCode == 200) {
+        final resolved = _read(body);
+        if (resolved != null) return resolved;
+      }
       // Tolinku's own answer, even a "no": the host is ours and has answered.
       if (_isTolinkuReply(response, body, host)) return null;
-      if (body != null) {
-        if (response.statusCode == 200) {
-          final resolved = _read(body);
-          if (resolved != null) return resolved;
-        }
-      }
     } catch (_) {
       // No answer from the host; the Tolinku API below may still know the link.
     }
