@@ -1,3 +1,12 @@
+<p align="center">
+  <a href="https://tolinku.com">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://tolinku.com/wp-content/themes/tolinku/assets/images/logo/tolinku-white.svg">
+      <img src="https://tolinku.com/wp-content/themes/tolinku/assets/images/logo/tolinku-black.svg" alt="Tolinku" height="44">
+    </picture>
+  </a>
+</p>
+
 # tolinku
 
 [![pub package](https://img.shields.io/pub/v/tolinku.svg)](https://pub.dev/packages/tolinku)
@@ -33,6 +42,20 @@ Tolinku.instance.setUserId('user_123');
 // Track a custom event
 await Tolinku.instance.track('purchase', properties: {'plan': 'growth'});
 ```
+
+## Set it up with your AI tool
+
+Tolinku has an MCP server, so Claude, ChatGPT, Cursor or VS Code can add this SDK to your app for you, with your Appspace's values filled in, and then check the setup end to end.
+
+1. Add `https://app.tolinku.com/mcp` to your AI tool and sign in to Tolinku. In Claude Code:
+
+   ```bash
+   claude mcp add --transport http tolinku https://app.tolinku.com/mcp
+   ```
+
+2. Ask it to "add the Tolinku SDK to this project", or use the `add_sdk` prompt (`/mcp__tolinku__add_sdk` in Claude Code) with `platform: flutter`.
+
+It can also debug a link that opens the browser instead of the app, create routes, and read your analytics. Changes are previewed before anything is saved. See [Connect your AI tool](https://tolinku.com/docs/ai-tools/connect/) for every client.
 
 ## Features
 
